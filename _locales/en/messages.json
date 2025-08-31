@@ -8,7 +8,7 @@
     "description": "Short name for toolbar"
   },
   "appDesc": {
-    "message": "Extract links and emails from any webpage instantly. Filter internal/external links, search, copy to clipboard, export to JSON/Excel. Perfect for SEO audits, content research, QA testing. Fast, privacy-friendly, no tracking.",
+    "message": "Extract links & emails from any webpage. Export to Excel/JSON. Fast, private, no tracking.",
     "description": "Extension description"
   },
   "actionTitle": {
