@@ -6,7 +6,9 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "tabs"
+    "tabs",
+    "storage",
+    "identity"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -32,6 +34,7 @@
     "128": "icons/icon128.png"
   },
   "host_permissions": [
-    "<all_urls>"
+    "<all_urls>",
+    "https://extensionpay.com/*"
   ]
 }

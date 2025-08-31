@@ -26,119 +26,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const linksTabContent = document.getElementById('linksTabContent');
     const emailsTabContent = document.getElementById('emailsTabContent');
     
+    // Usage limit elements
+    const usageCount = document.getElementById('usageCount');
+    const usageProgressFill = document.getElementById('usageProgressFill');
+    const usageFooter = document.getElementById('usageFooter');
+    
     let allLinks = [];
     let filteredLinks = [];
     let isExtracting = false;
-    
     let allEmails = [];
     let filteredEmails = [];
     let isExtractingEmails = false;
     let currentTab = 'links'; // Track current active tab
     let isAutoMode = false; // Track if auto mode is enabled
-    let isPremiumUser = false; // Premium status
     
     // Usage limit configuration
-    const DAILY_LIMIT = 5;
+    const DAILY_LIMIT = 50;
     const STORAGE_KEY = 'linkExtractorUsage';
     const DEVICE_KEY = 'linkExtractorDevice';
     const INSTALL_KEY = 'linkExtractorInstall';
     const MODE_KEY = 'linkExtractorMode'; // Store user's preferred mode
     
-    // Initialize mode on load
+    // Initialize usage tracking
+    initializeUsageTracking();
+    
+    // Initialize mode from storage
     initializeMode();
     
-    // Extract links function (can be called manually or automatically)
-    async function extractLinks() {
-        if (isExtracting) return;
-        
-        isExtracting = true;
-        showLoading(true);
-        
-        try {
-            // Get the active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Check if we can access the tab
-            if (!tab || !tab.url) {
-                throw new Error('No active tab found');
-            }
-            
-            // Check if it's a restricted page
-            if (tab.url.startsWith('chrome://') || 
-                tab.url.startsWith('chrome-extension://') || 
-                tab.url.startsWith('edge://') || 
-                tab.url.startsWith('about:')) {
-                throw new Error('Cannot access browser internal pages');
-            }
-            
-            console.log('Attempting to extract links from:', tab.url);
-            
-            // Try to send message to existing content script
-            let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
-            
-            if (response && response.success) {
-                allLinks = response.data.links;
-                updateLinkCount(response.data);
-                enableControls();
-                filterAndDisplayLinks();
-                showSuccessMessage();
-            } else {
-                const errorMsg = response ? response.error : 'Unknown error occurred';
-                throw new Error('Failed to extract links: ' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error extracting links:', error);
-            let userMessage = 'Error extracting links. ';
-            
-            if (error.message.includes('Cannot access browser internal pages')) {
-                userMessage += 'This extension cannot work on browser internal pages.';
-            } else if (error.message.includes('Could not communicate with page')) {
-                userMessage += 'Please refresh the page and try again.';
-            } else {
-                userMessage += 'Please refresh the page if the issue persists.';
-            }
-            
-            showError(userMessage);
-        } finally {
-            showLoading(false);
-            isExtracting = false;
-        }
-    }
+    // Tab event listeners
+    linksTab.addEventListener('click', () => switchTab('links'));
+    emailsTab.addEventListener('click', () => switchTab('emails'));
     
-    // Send message with retry logic and content script injection
-    async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const response = await chrome.tabs.sendMessage(tabId, message);
-                return response;
-            } catch (error) {
-                console.log(`Message attempt ${attempt} failed:`, error);
-                
-                if (attempt === maxRetries) {
-                    throw error;
-                }
-                
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
-                
-                // Try to inject content script if it failed
-                if (attempt === 1) {
-                    try {
-                        await chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            files: ['content.js']
-                        });
-                        console.log('Content script injected');
-                    } catch (injectError) {
-                        console.log('Failed to inject content script:', injectError);
-                    }
-                }
-            }
-        }
-    }
-    
-    // Extract links button click (now acts as refresh)
+    // Extract links button click
     extractBtn.addEventListener('click', extractLinks);
+    
+    // Extract emails button click
+    extractEmailsBtn.addEventListener('click', extractEmails);
     
     // Copy all links button
     copyAllBtn.addEventListener('click', () => {
@@ -238,6 +161,377 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', filterAndDisplayLinks);
     filterInternal.addEventListener('change', filterAndDisplayLinks);
     filterExternal.addEventListener('change', filterAndDisplayLinks);
+    
+    // Email search functionality
+    emailSearchInput.addEventListener('input', filterAndDisplayEmails);
+    filterVisibleEmails.addEventListener('change', filterAndDisplayEmails);
+    filterHiddenEmails.addEventListener('change', filterAndDisplayEmails);
+    
+    // Copy all emails button
+    copyAllEmailsBtn.addEventListener('click', () => {
+        const emailAddresses = filteredEmails.map(email => email.email).join('\n');
+        navigator.clipboard.writeText(emailAddresses).then(() => {
+            showNotification('Emails copied to clipboard!');
+        }).catch(err => {
+            showError('Failed to copy emails: ' + err.message);
+        });
+    });
+    
+    // Export Emails JSON button
+    exportEmailsJsonBtn.addEventListener('click', () => {
+        const dataToExport = {
+            emails: filteredEmails,
+            exportedAt: new Date().toISOString(),
+            totalCount: filteredEmails.length
+        };
+        
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `emails-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('Emails exported as JSON!');
+    });
+    
+    // Export Emails Excel button
+    exportEmailsExcelBtn.addEventListener('click', () => {
+        try {
+            // Show loading state
+            exportEmailsExcelBtn.disabled = true;
+            exportEmailsExcelBtn.innerHTML = '⏳ Creating Excel...';
+            
+            // Prepare data for Excel
+            const worksheetData = [
+                ['Email', 'Source', 'Visible on Page', 'Context']
+            ];
+            
+            filteredEmails.forEach(email => {
+                worksheetData.push([
+                    email.email,
+                    email.source,
+                    email.isVisible ? 'Yes' : 'No',
+                    email.context || ''
+                ]);
+            });
+            
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 50 }, // Email
+                { wch: 12 }, // Source
+                { wch: 15 }, // Visible
+                { wch: 30 }  // Context
+            ];
+            
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Emails');
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `emails-${timestamp}.xlsx`;
+            
+            // Write file
+            XLSX.writeFile(wb, filename);
+            
+            // Success feedback
+            exportEmailsExcelBtn.innerHTML = '✅ Downloaded!';
+            showNotification('Emails exported to Excel!');
+            
+        } catch (error) {
+            console.error('Error exporting emails to Excel:', error);
+            showError('Failed to export emails to Excel: ' + error.message);
+            exportEmailsExcelBtn.innerHTML = '❌ Failed';
+        } finally {
+            // Reset button state after delay
+            setTimeout(() => {
+                exportEmailsExcelBtn.disabled = false;
+                exportEmailsExcelBtn.innerHTML = '📊 Export to Excel';
+            }, 2000);
+        }
+    });
+    
+    // Tab switching functionality
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // Update tab buttons
+        linksTab.classList.toggle('active', tab === 'links');
+        emailsTab.classList.toggle('active', tab === 'emails');
+        
+        // Update tab content
+        linksTabContent.classList.toggle('active', tab === 'links');
+        emailsTabContent.classList.toggle('active', tab === 'emails');
+        
+        // Update header based on active tab
+        const headerTitle = document.querySelector('.header h1');
+        const headerDesc = document.querySelector('.header p');
+        
+        if (tab === 'links') {
+            headerTitle.textContent = '🔗📧 Link & Email Extractor';
+            headerDesc.textContent = 'Extract all links and emails from the current page';
+        } else {
+            headerTitle.textContent = '📧📧 Email Extractor';
+            headerDesc.textContent = 'Extract all emails from the current page';
+        }
+        
+        // Update mode UI for new tab
+        updateModeUI();
+        
+        // Auto-extract if in auto mode
+        if (isAutoMode) {
+            setTimeout(() => {
+                if (tab === 'links') {
+                    extractLinks();
+                } else {
+                    extractEmails();
+                }
+            }, 300);
+        }
+    }
+    
+    // Mode management functions
+    async function initializeMode() {
+        try {
+            const result = await chrome.storage.sync.get([MODE_KEY]);
+            const savedMode = result[MODE_KEY];
+            
+            if (savedMode) {
+                isAutoMode = savedMode === 'auto';
+            }
+            
+            // Update UI to reflect current mode
+            updateModeUI();
+            
+            // Auto-extract based on current tab and mode
+            if (isAutoMode) {
+                setTimeout(() => {
+                    if (currentTab === 'links') {
+                        extractLinks();
+                    } else {
+                        extractEmails();
+                    }
+                }, 500); // Small delay to ensure page is ready
+            }
+        } catch (error) {
+            console.error('Error initializing mode:', error);
+            // Default to manual mode on error
+            isAutoMode = false;
+            updateModeUI();
+        }
+    }
+    
+    async function setMode(mode, save = true) {
+        isAutoMode = mode === 'auto';
+        
+        if (save) {
+            try {
+                await chrome.storage.sync.set({ [MODE_KEY]: mode });
+            } catch (error) {
+                console.error('Error saving mode:', error);
+            }
+        }
+        
+        updateModeUI();
+        
+        // Auto-extract if switching to auto mode
+        if (isAutoMode) {
+            setTimeout(() => {
+                if (currentTab === 'links') {
+                    extractLinks();
+                } else {
+                    extractEmails();
+                }
+            }, 300);
+        }
+    }
+    
+    function updateModeUI() {
+        // Update button text based on current tab and mode
+        if (currentTab === 'links') {
+            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔗 Extract Links';
+        } else {
+            extractEmailsBtn.textContent = isAutoMode ? '🔄 Refresh Emails' : '📧 Extract Emails';
+        }
+    }
+    
+    // Extract links function
+    async function extractLinks() {
+        if (isExtracting) return;
+        
+        // Check usage limit before proceeding
+        const currentUsage = await getCurrentUsageCount();
+        if (currentUsage >= DAILY_LIMIT) {
+            showLimitReached();
+            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
+            return;
+        }
+        
+        isExtracting = true;
+        showLoading(true);
+        
+        try {
+            // Get the active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            // Check if we can access the tab
+            if (!tab || !tab.url) {
+                throw new Error('No active tab found');
+            }
+            
+            // Check if it's a restricted page
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') || 
+                tab.url.startsWith('edge://') || 
+                tab.url.startsWith('about:')) {
+                throw new Error('Cannot access browser internal pages');
+            }
+            
+            console.log('Attempting to extract links from:', tab.url);
+            
+            // Try to send message to existing content script
+            let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
+            
+            if (response && response.success) {
+                // Increment usage count on successful extraction
+                await incrementUsageCount();
+                
+                allLinks = response.data.links;
+                updateLinkCount(response.data);
+                enableControls();
+                filterAndDisplayLinks();
+                showSuccessMessage();
+            } else {
+                const errorMsg = response ? response.error : 'Unknown error occurred';
+                throw new Error('Failed to extract links: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error extracting links:', error);
+            let userMessage = 'Error extracting links. ';
+            
+            if (error.message.includes('Cannot access browser internal pages')) {
+                userMessage += 'This extension cannot work on browser internal pages.';
+            } else if (error.message.includes('Could not communicate with page')) {
+                userMessage += 'Please refresh the page and try again.';
+            } else {
+                userMessage += 'Please refresh the page if the issue persists.';
+            }
+            
+            showError(userMessage);
+        } finally {
+            showLoading(false);
+            isExtracting = false;
+        }
+    }
+    
+    // Extract emails function
+    async function extractEmails() {
+        if (isExtractingEmails) return;
+        
+        // Check usage limit before proceeding
+        const currentUsage = await getCurrentUsageCount();
+        if (currentUsage >= DAILY_LIMIT) {
+            showLimitReached();
+            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
+            return;
+        }
+        
+        isExtractingEmails = true;
+        showLoading(true, 'emails');
+        
+        try {
+            // Get the active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            // Check if we can access the tab
+            if (!tab || !tab.url) {
+                throw new Error('No active tab found');
+            }
+            
+            // Check if it's a restricted page
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') || 
+                tab.url.startsWith('edge://') || 
+                tab.url.startsWith('about:')) {
+                throw new Error('Cannot access browser internal pages');
+            }
+            
+            console.log('Attempting to extract emails from:', tab.url);
+            
+            // Try to send message to existing content script
+            let response = await sendMessageWithRetry(tab.id, { action: 'extractEmails' });
+            
+            if (response && response.success) {
+                // Increment usage count on successful extraction
+                await incrementUsageCount();
+                
+                allEmails = response.data.emails;
+                updateEmailCount(response.data);
+                enableEmailControls();
+                filterAndDisplayEmails();
+                showSuccessMessage('Emails extracted successfully!');
+            } else {
+                const errorMsg = response ? response.error : 'Unknown error occurred';
+                throw new Error('Failed to extract emails: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error extracting emails:', error);
+            let userMessage = 'Error extracting emails. ';
+            
+            if (error.message.includes('Cannot access browser internal pages')) {
+                userMessage += 'This extension cannot work on browser internal pages.';
+            } else if (error.message.includes('Could not communicate with page')) {
+                userMessage += 'Please refresh the page and try again.';
+            } else {
+                userMessage += 'Please try again.';
+            }
+            
+            showError(userMessage);
+        } finally {
+            showLoading(false, 'emails');
+            isExtractingEmails = false;
+        }
+    }
+    
+    // Send message with retry logic and content script injection
+    async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await chrome.tabs.sendMessage(tabId, message);
+                return response;
+            } catch (error) {
+                console.log(`Message attempt ${attempt} failed:`, error);
+                
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+                
+                // Try to inject content script if it failed
+                if (attempt === 1) {
+                    try {
+                        await chrome.scripting.executeScript({
+                            target: { tabId: tabId },
+                            files: ['content.js']
+                        });
+                        console.log('Content script injected');
+                    } catch (injectError) {
+                        console.log('Failed to inject content script:', injectError);
+                    }
+                }
+            }
+        }
+    }
     
     function filterAndDisplayLinks() {
         const searchTerm = searchInput.value.toLowerCase();
@@ -420,161 +714,6 @@ document.addEventListener('DOMContentLoaded', function() {
         exportEmailsExcelBtn.disabled = false;
     }
     
-    // Extract emails function
-    async function extractEmails() {
-        if (isExtractingEmails) return;
-        
-        isExtractingEmails = true;
-        showLoading(true, 'emails');
-        
-        try {
-            // Get the active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Check if we can access the tab
-            if (!tab || !tab.url) {
-                throw new Error('No active tab found');
-            }
-            
-            // Check if it's a restricted page
-            if (tab.url.startsWith('chrome://') || 
-                tab.url.startsWith('chrome-extension://') || 
-                tab.url.startsWith('edge://') || 
-                tab.url.startsWith('about:')) {
-                throw new Error('Cannot access browser internal pages');
-            }
-            
-            console.log('Attempting to extract emails from:', tab.url);
-            
-            // Try to send message to existing content script
-            let response = await sendMessageWithRetry(tab.id, { action: 'extractEmails' });
-            
-            if (response && response.success) {
-                allEmails = response.data.emails;
-                updateEmailCount(response.data);
-                enableEmailControls();
-                filterAndDisplayEmails();
-                showSuccessMessage('Emails extracted successfully!');
-            } else {
-                const errorMsg = response ? response.error : 'Unknown error occurred';
-                throw new Error('Failed to extract emails: ' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error extracting emails:', error);
-            let userMessage = 'Error extracting emails. ';
-            
-            if (error.message.includes('Cannot access browser internal pages')) {
-                userMessage += 'This extension cannot work on browser internal pages.';
-            } else if (error.message.includes('Could not communicate with page')) {
-                userMessage += 'Please refresh the page and try again.';
-            } else {
-                userMessage += 'Please try again.';
-            }
-            
-            showError(userMessage);
-        } finally {
-            showLoading(false, 'emails');
-            isExtractingEmails = false;
-        }
-    }
-    
-    // Copy all emails button
-    copyAllEmailsBtn.addEventListener('click', () => {
-        const emailAddresses = filteredEmails.map(email => email.email).join('\n');
-        navigator.clipboard.writeText(emailAddresses).then(() => {
-            showNotification('Emails copied to clipboard!');
-        }).catch(err => {
-            showError('Failed to copy emails: ' + err.message);
-        });
-    });
-    
-    // Export Emails JSON button
-    exportEmailsJsonBtn.addEventListener('click', () => {
-        const dataToExport = {
-            emails: filteredEmails,
-            exportedAt: new Date().toISOString(),
-            totalCount: filteredEmails.length
-        };
-        
-        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `emails-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showNotification('Emails exported as JSON!');
-    });
-    
-    // Export Emails Excel button
-    exportEmailsExcelBtn.addEventListener('click', () => {
-        try {
-            // Show loading state
-            exportEmailsExcelBtn.disabled = true;
-            exportEmailsExcelBtn.innerHTML = '⏳ Creating Excel...';
-            
-            // Prepare data for Excel
-            const worksheetData = [
-                ['Email', 'Type', 'Domain', 'Visible on Page']
-            ];
-            
-            filteredEmails.forEach(email => {
-                worksheetData.push([
-                    email.email,
-                    email.source,
-                    email.isVisible ? 'Yes' : 'No',
-                    email.context || ''
-                ]);
-            });
-            
-            // Create workbook and worksheet
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-            
-            // Set column widths
-            ws['!cols'] = [
-                { wch: 50 }, // Email
-                { wch: 12 }, // Type
-                { wch: 20 }, // Domain
-                { wch: 15 }  // Visible
-            ];
-            
-            // Add worksheet to workbook
-            XLSX.utils.book_append_sheet(wb, ws, 'Emails');
-            
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const filename = `emails-${timestamp}.xlsx`;
-            
-            // Write file
-            XLSX.writeFile(wb, filename);
-            
-            // Success feedback
-            exportEmailsExcelBtn.innerHTML = '✅ Downloaded!';
-            showNotification('Emails exported to Excel!');
-            
-        } catch (error) {
-            console.error('Error exporting emails to Excel:', error);
-            showError('Failed to export emails to Excel: ' + error.message);
-            exportEmailsExcelBtn.innerHTML = '❌ Failed';
-        } finally {
-            // Reset button state after delay
-            setTimeout(() => {
-                exportEmailsExcelBtn.disabled = false;
-                exportEmailsExcelBtn.innerHTML = '📊 Export to Excel';
-            }, 2000);
-        }
-    });
-    
-    // Email search functionality
-    emailSearchInput.addEventListener('input', filterAndDisplayEmails);
-    filterVisibleEmails.addEventListener('change', filterAndDisplayEmails);
-    filterHiddenEmails.addEventListener('change', filterAndDisplayEmails);
-    
     function filterAndDisplayEmails() {
         const searchTerm = emailSearchInput.value.toLowerCase();
         const showVisible = filterVisibleEmails.checked;
@@ -739,362 +878,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
         }, 3000);
-    }
-    
-    // Tab switching functionality
-    function switchTab(tab) {
-        currentTab = tab;
-        
-        // Update tab buttons
-        linksTab.classList.toggle('active', tab === 'links');
-        emailsTab.classList.toggle('active', tab === 'emails');
-        
-        // Update tab content
-        linksTabContent.classList.toggle('active', tab === 'links');
-        emailsTabContent.classList.toggle('active', tab === 'emails');
-        
-        // Update header based on active tab
-        const headerTitle = document.querySelector('.header h1');
-        const headerDesc = document.querySelector('.header p');
-        
-        if (tab === 'links') {
-            headerTitle.textContent = '🔗📧 Link & Email Extractor';
-            headerDesc.textContent = 'Extract all links and emails from the current page';
-        } else {
-            headerTitle.textContent = '📧📧 Email Extractor';
-            headerDesc.textContent = 'Extract all emails from the current page';
-        }
-        
-        // Update mode UI for new tab
-        updateModeUI();
-        
-        // Auto-extract if in auto mode
-        if (isAutoMode) {
-            setTimeout(() => {
-                if (tab === 'links') {
-                    extractLinks();
-                } else {
-                    extractEmails();
-                }
-            }, 300);
-        }
-    }
-    
-    // Tab event listeners
-    linksTab.addEventListener('click', () => switchTab('links'));
-    emailsTab.addEventListener('click', () => switchTab('emails'));
-    
-    // Mode management functions
-    async function initializeMode() {
-        try {
-            const result = await chrome.storage.sync.get([MODE_KEY]);
-            const savedMode = result[MODE_KEY];
-            
-            if (savedMode) {
-                isAutoMode = savedMode === 'auto';
-            }
-            
-            // Update UI to reflect current mode
-            updateModeUI();
-            
-            // Auto-extract based on current tab and mode
-            if (isAutoMode) {
-                setTimeout(() => {
-                    if (currentTab === 'links') {
-                        extractLinks();
-                    } else {
-                        extractEmails();
-                    }
-                }, 500); // Small delay to ensure page is ready
-            }
-        } catch (error) {
-            console.error('Error initializing mode:', error);
-            // Default to manual mode on error
-            isAutoMode = false;
-            updateModeUI();
-        }
-    }
-    
-    async function setMode(mode, save = true) {
-        isAutoMode = mode === 'auto';
-        
-        if (save) {
-            try {
-                await chrome.storage.sync.set({ [MODE_KEY]: mode });
-            } catch (error) {
-                console.error('Error saving mode:', error);
-            }
-        }
-        
-        updateModeUI();
-        
-        // Auto-extract if switching to auto mode
-        if (isAutoMode) {
-            setTimeout(() => {
-                if (currentTab === 'links') {
-                    extractLinks();
-                } else {
-                    extractEmails();
-                }
-            }, 300);
-        }
-    }
-    
-    function updateModeUI() {
-        // Update button text based on current tab and mode
-        if (currentTab === 'links') {
-            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔗 Extract Links';
-        } else {
-            extractEmailsBtn.textContent = isAutoMode ? '🔄 Refresh Emails' : '📧 Extract Emails';
-        }
-    }
-    
-    // Auto-extract links when popup opens (for links tab)
-    async function autoExtractLinks() {
-        if (isAutoMode && currentTab === 'links') {
-            await extractLinks();
-        }
-    }
-    
-    // Auto-extract emails when popup opens (for emails tab)
-    async function autoExtractEmails() {
-        if (isAutoMode && currentTab === 'emails') {
-            await extractEmails();
-        }
-    }
-    
-    // Email export functions
-    async function copyAllEmails() {
-        if (filteredEmails.length === 0) {
-            showNotification('No emails to copy', 'error');
-            return;
-        }
-        
-        const emailsText = filteredEmails.map(email => email.email).join('\n');
-        
-        try {
-            await navigator.clipboard.writeText(emailsText);
-            showNotification(`${filteredEmails.length} email(s) copied to clipboard!`, 'success', 3000);
-        } catch (error) {
-            console.error('Failed to copy emails:', error);
-            showNotification('Failed to copy emails', 'error');
-        }
-    }
-    
-    function exportEmailsJson() {
-        if (filteredEmails.length === 0) {
-            showNotification('No emails to export', 'error');
-            return;
-        }
-        
-        const exportData = {
-            emails: filteredEmails,
-            totalCount: filteredEmails.length,
-            exportedAt: new Date().toISOString(),
-            source: window.location.href
-        };
-        
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const dataBlob = new Blob([dataStr], { type: 'application/json' });
-        
-        downloadBlob(dataBlob, `emails_${new Date().toISOString().split('T')[0]}.json`);
-        showNotification('Emails exported as JSON!', 'success', 3000);
-    }
-    
-    function exportEmailsExcel() {
-        if (filteredEmails.length === 0) {
-            showNotification('No emails to export', 'error');
-            return;
-        }
-        
-        const worksheet = XLSX.utils.json_to_sheet(filteredEmails.map(email => ({
-            'Email': email.email,
-            'Source': email.source,
-            'Visible': email.isVisible ? 'Yes' : 'No',
-            'Context': email.context || ''
-        })));
-        
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, 'Emails');
-        
-        XLSX.writeFile(workbook, `emails_${new Date().toISOString().split('T')[0]}.xlsx`);
-        showNotification('Emails exported to Excel!', 'success', 3000);
-    }
-    
-    // Email event listeners
-    extractEmailsBtn.addEventListener('click', extractEmails);
-    copyAllEmailsBtn.addEventListener('click', copyAllEmails);
-    exportEmailsJsonBtn.addEventListener('click', exportEmailsJson);
-    exportEmailsExcelBtn.addEventListener('click', exportEmailsExcel);
-    
-    emailSearchInput.addEventListener('input', filterAndDisplayEmails);
-    filterVisibleEmails.addEventListener('change', filterAndDisplayEmails);
-    filterHiddenEmails.addEventListener('change', filterAndDisplayEmails);
-    
-    // Initialize mode from storage
-    initializeMode();
-    
-    // Auto-extract will be handled in initializeMode() after mode is loaded
-    
-    function downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }
-    
-    async function getCurrentUsageCount() {
-        try {
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            const usageData = result[STORAGE_KEY] || { date: today, count: 0 };
-            
-            if (usageData.date !== today) {
-                return 0; // New day, reset count
-            }
-            
-            return usageData.count;
-        } catch (error) {
-            console.error('Error getting usage count:', error);
-            return 0;
-        }
-    }
-    
-    async function incrementUsageCount() {
-        try {
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            let usageData = result[STORAGE_KEY] || { date: today, count: 0 };
-            
-            if (usageData.date !== today) {
-                usageData = { date: today, count: 1 };
-            } else {
-                usageData.count += 1;
-            }
-            
-            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
-            updateUsageDisplay(usageData.count);
-        } catch (error) {
-            console.error('Error incrementing usage count:', error);
-        }
-    }
-    
-    function updateUsageDisplay(count) {
-        const usageCount = document.getElementById('usageCount');
-        if (usageCount) {
-            if (isPremiumUser) {
-                usageCount.textContent = '∞ Unlimited';
-                usageCount.style.color = '#10b981';
-                usageCount.style.fontWeight = '600';
-            } else {
-                usageCount.textContent = `${count}/${DAILY_LIMIT}`;
-                usageCount.style.color = count >= DAILY_LIMIT ? '#dc2626' : '#6b7280';
-                usageCount.style.fontWeight = count >= DAILY_LIMIT ? '600' : '400';
-            }
-        }
-        
-        // Update progress bar
-        const progressFill = document.getElementById('usageProgressFill');
-        if (progressFill && !isPremiumUser) {
-            const percentage = Math.min((count / DAILY_LIMIT) * 100, 100);
-            progressFill.style.width = `${percentage}%`;
-            progressFill.style.backgroundColor = count >= DAILY_LIMIT ? '#dc2626' : '#4f46e5';
-        }
-    }
-    
-    function showLimitReached() {
-        showNotification('Daily limit reached! Upgrade to premium for unlimited extractions.', 'error', 5000);
-    }
-    
-    function updatePremiumStatus() {
-        // Update usage display to reflect premium status
-        if (isPremiumUser) {
-            // Show premium status in usage header
-            const usageCount = document.getElementById('usageCount');
-            if (usageCount) {
-                usageCount.textContent = '∞ Unlimited';
-                usageCount.style.color = '#10b981';
-                usageCount.style.fontWeight = '600';
-            }
-            
-            // Hide progress bar for premium users
-            const progressBar = document.querySelector('.usage-progress-bar');
-            if (progressBar) {
-                progressBar.style.display = 'none';
-            }
-            
-            // Update footer to show premium status
-            const usageFooter = document.getElementById('usageFooter');
-            if (usageFooter) {
-                usageFooter.innerHTML = `
-                    <div class="premium-status">
-                        <span style="color: #10b981; font-weight: 600;">
-                            ✨ Premium Active - Unlimited Extractions
-                        </span>
-                        <button id="managePremiumBtn" style="
-                            margin-top: 8px;
-                            padding: 4px 12px;
-                            font-size: 11px;
-                            background: linear-gradient(135deg, #10b981, #059669);
-                            color: white;
-                            border: none;
-                            border-radius: 6px;
-                            cursor: pointer;
-                            font-weight: 500;
-                        ">Manage Subscription</button>
-                    </div>
-                `;
-                
-                // Add event listener for manage subscription button
-                const managePremiumBtn = document.getElementById('managePremiumBtn');
-                if (managePremiumBtn) {
-                    managePremiumBtn.addEventListener('click', openSubscriptionManagement);
-                }
-            }
-        } else {
-            // Show regular usage display for free users
-            const progressBar = document.querySelector('.usage-progress-bar');
-            if (progressBar) {
-                progressBar.style.display = 'block';
-            }
-            
-            // Reset usage count styling
-            const usageCount = document.getElementById('usageCount');
-            if (usageCount) {
-                usageCount.style.color = '';
-                usageCount.style.fontWeight = '';
-            }
-            
-            // Re-initialize usage display for free users
-            initializeUsageTracking();
-        }
-    }
-    
-    function openSubscriptionManagement() {
-        try {
-            // Open ExtPay subscription management
-            extpay.openPaymentPage();
-        } catch (error) {
-            console.error('Error opening subscription management:', error);
-            showNotification('Unable to open subscription management. Please try again.', 'error');
-        }
-    }
-    
-    async function initiateUpgrade() {
-        try {
-            // Open ExtPay payment page for subscription
-            await extpay.openPaymentPage();
-        } catch (error) {
-            console.error('Error initiating upgrade:', error);
-            showNotification('Unable to process upgrade. Please try again.', 'error');
-        }
     }
     
     // Usage tracking functions
@@ -1213,36 +1001,160 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function showStorageError() {
         const usageFooter = document.getElementById('usageFooter');
-        if (usageFooter) {
-            usageFooter.innerHTML = `
-                <div class="usage-error">
-                    <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
-                        ⚠️ Storage Error<br>
-                        <span style="font-size: 11px; color: #991b1b;">
-                            Unable to track usage. This may be due to browser restrictions.<br>
-                            Extension functionality may be limited.
-                        </span>
-                        <button id="retryBtn" style="
-                            margin-top: 8px;
-                            padding: 4px 8px;
-                            font-size: 10px;
-                            background: #dc2626;
-                            color: white;
-                            border: none;
-                            border-radius: 4px;
-                            cursor: pointer;
-                        ">Retry</button>
-                    </div>
+        usageFooter.innerHTML = `
+            <div class="usage-error">
+                <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                    ⚠️ Storage Error<br>
+                    <span style="font-size: 11px; color: #991b1b;">
+                        Unable to track usage. This may be due to browser restrictions.<br>
+                        Extension functionality may be limited.
+                    </span>
+                    <button id="retryBtn" style="
+                        margin-top: 8px;
+                        padding: 4px 8px;
+                        font-size: 10px;
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Retry</button>
                 </div>
-            `;
-            
-            // Add event listener for retry button
-            const retryBtn = document.getElementById('retryBtn');
-            if (retryBtn) {
-                retryBtn.addEventListener('click', () => {
-                    initializeUsageTracking();
-                });
-            }
+            </div>
+        `;
+        
+        // Add event listener for retry button
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                location.reload();
+            });
         }
+    }
+    
+    async function incrementUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            let usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Reset count if it's a new day
+            if (usageData.date !== today) {
+                usageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: deviceId,
+                    created: usageData.created || Date.now(),
+                    lastReset: Date.now()
+                };
+            }
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during increment, handling...');
+                await handleDeviceMismatch(usageData, deviceId, today);
+                const newResult = await chrome.storage.sync.get([STORAGE_KEY]);
+                usageData = newResult[STORAGE_KEY];
+            }
+            
+            usageData.count++;
+            usageData.lastUsed = Date.now();
+            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
+            updateUsageDisplay(usageData.count);
+            
+            return usageData.count;
+        } catch (error) {
+            console.error('Error incrementing usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    async function getCurrentUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            const usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Return limit if it's a new day (will be reset on next operation)
+            if (usageData.date !== today) {
+                return 0;
+            }
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during get, returning conservative count');
+                return Math.min(usageData.count || 0, DAILY_LIMIT);
+            }
+            
+            return usageData.count || 0;
+        } catch (error) {
+            console.error('Error getting usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    function updateUsageDisplay(count) {
+        const remaining = Math.max(0, DAILY_LIMIT - count);
+        const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
+        
+        // Update count display
+        usageCount.textContent = `${count}/${DAILY_LIMIT}`;
+        
+        // Update progress bar
+        usageProgressFill.style.width = `${percentage}%`;
+        
+        // Update progress bar color based on usage
+        usageProgressFill.className = 'usage-progress-fill';
+        if (percentage >= 100) {
+            usageProgressFill.classList.add('danger');
+        } else if (percentage >= 80) {
+            usageProgressFill.classList.add('warning');
+        }
+        
+        // Update footer content
+        if (count >= DAILY_LIMIT) {
+            showLimitReached();
+        } else {
+            usageFooter.innerHTML = `
+                <span class="usage-remaining">${remaining} extractions remaining today</span>
+            `;
+        }
+    }
+    
+    function showLimitReached() {
+        usageFooter.innerHTML = `
+            <div class="usage-limit-reached">
+                <div class="limit-title">Daily Limit Reached</div>
+                <div class="limit-message">
+                    You've used all ${DAILY_LIMIT} free extractions today. Please try again tomorrow!
+                </div>
+                <div class="limit-reset-info">
+                    Free limit resets at midnight
+                </div>
+            </div>
+        `;
+        
+        // Disable the extract buttons
+        extractBtn.disabled = true;
+        extractBtn.textContent = '🚫 Daily Limit Reached';
+        extractBtn.style.opacity = '0.6';
+        extractBtn.style.cursor = 'not-allowed';
+        
+        extractEmailsBtn.disabled = true;
+        extractEmailsBtn.textContent = '🚫 Daily Limit Reached';
+        extractEmailsBtn.style.opacity = '0.6';
+        extractEmailsBtn.style.cursor = 'not-allowed';
     }
 });
