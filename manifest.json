@@ -1,18 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "Link & Email Extractor",
-  "version": "1.0.0",
-  "description": "Extract all links and emails from the current web page",
+  "name": "CyberExtractor",
+  "version": "2.0",
+  "description": "Extract links and emails from web pages with a cyberpunk interface",
   "permissions": [
     "activeTab",
     "scripting",
-    "tabs",
     "storage",
-    "identity"
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Extract Links & Emails",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -20,21 +21,24 @@
       "128": "icons/icon128.png"
     }
   },
-  "content_scripts": [
-    {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
-      "run_at": "document_end"
-    }
-  ],
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "host_permissions": [
-    "<all_urls>",
-    "https://extensionpay.com/*"
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*", "sounds/*"],
+      "matches": ["<all_urls>"]
+    }
   ]
 }
