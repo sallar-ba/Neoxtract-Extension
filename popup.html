@@ -8,38 +8,79 @@
 </head>
 <body>
     <div class="header">
-        <h1>🔗 Link Extractor</h1>
-        <p>Extract all links from the current page</p>
+        <h1>🔗📧 Link & Email Extractor</h1>
+        <p>Extract all links and emails from the current page</p>
     </div>
     
     <div class="content">
-        <button id="extractLinks" class="btn btn-primary">🔄 Refresh Links</button>
-        
-        <div class="stats">
-            <span id="linkCount">Loading...</span>
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button id="linksTab" class="tab-button active">🔗 Links</button>
+            <button id="emailsTab" class="tab-button">📧 Emails</button>
         </div>
         
-        <div class="search-container">
-            <input type="text" id="searchInput" placeholder="🔍 Search links..." disabled>
+        <!-- Links Tab Content -->
+        <div id="linksTabContent" class="tab-content active">
+            <button id="extractLinks" class="btn btn-primary">🔄 Refresh Links</button>
+            
+            <div class="stats">
+                <span id="linkCount">Loading...</span>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" id="searchInput" placeholder="🔍 Search links..." disabled>
+            </div>
+            
+            <div class="filters">
+                <label>
+                    <input type="checkbox" id="filterInternal" checked> 🏠 Internal
+                </label>
+                <label>
+                    <input type="checkbox" id="filterExternal" checked> 🌐 External
+                </label>
+            </div>
+            
+            <div class="links-container" id="linksContainer">
+                <div class="loading">Extracting links...</div>
+            </div>
+            
+            <div class="export-buttons">
+                <button id="copyAll" class="btn btn-secondary" disabled>📋 Copy All Links</button>
+                <button id="exportJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
+                <button id="exportExcel" class="btn btn-secondary" disabled>📊 Export to Excel</button>
+            </div>
         </div>
         
-        <div class="filters">
-            <label>
-                <input type="checkbox" id="filterInternal" checked> 🏠 Internal
-            </label>
-            <label>
-                <input type="checkbox" id="filterExternal" checked> 🌐 External
-            </label>
-        </div>
-        
-        <div class="links-container" id="linksContainer">
-            <div class="loading">Extracting links...</div>
-        </div>
-        
-        <div class="export-buttons">
-            <button id="copyAll" class="btn btn-secondary" disabled>📋 Copy All Links</button>
-            <button id="exportJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
-            <button id="exportExcel" class="btn btn-secondary" disabled>📊 Export to Excel</button>
+        <!-- Emails Tab Content -->
+        <div id="emailsTabContent" class="tab-content">
+            <button id="extractEmails" class="btn btn-primary">🔄 Refresh Emails</button>
+            
+            <div class="stats">
+                <span id="emailCount">Loading...</span>
+            </div>
+            
+            <div class="search-container">
+                <input type="text" id="emailSearchInput" placeholder="🔍 Search emails..." disabled>
+            </div>
+            
+            <div class="filters">
+                <label>
+                    <input type="checkbox" id="filterVisibleEmails" checked> 👁️ Visible
+                </label>
+                <label>
+                    <input type="checkbox" id="filterHiddenEmails" checked> 👻 Hidden
+                </label>
+            </div>
+            
+            <div class="emails-container" id="emailsContainer">
+                <div class="loading">Extracting emails...</div>
+            </div>
+            
+            <div class="export-buttons">
+                <button id="copyAllEmails" class="btn btn-secondary" disabled>📋 Copy All Emails</button>
+                <button id="exportEmailsJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
+                <button id="exportEmailsExcel" class="btn btn-secondary" disabled>📊 Export to Excel</button>
+            </div>
         </div>
     </div>
     
