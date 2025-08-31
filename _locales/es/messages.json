@@ -1,0 +1,6 @@
+{
+  "appName": {"message": "CyberExtractor – Extractor de enlaces y correos", "description": "Nombre de la extensión"},
+  "appShortName": {"message": "CyberXtract", "description": "Nombre corto"},
+  "appDesc": {"message": "Extrae enlaces y correos de cualquier página. Filtra, busca, copia y exporta (JSON/Excel). Rápido y privado.", "description": "Descripción"},
+  "actionTitle": {"message": "Abrir CyberExtractor", "description": "Título del botón"}
+}

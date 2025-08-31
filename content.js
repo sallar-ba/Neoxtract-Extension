@@ -141,7 +141,7 @@
         
         overlay.innerHTML = `
             <div style="text-align:center; margin-bottom: 20px;">
-                <h2 style="color:#00f3ff; text-shadow: 0 0 10px #00f3ff;">GOD MODE ACTIVATED</h2>
+                <h2 style="color:#0f0; text-shadow: 0 0 10px #0f0;">GOD MODE ACTIVATED</h2>
                 <p>You found the Konami Code Easter Egg!</p>
                 <p>Click anywhere to dismiss</p>
             </div>
@@ -221,7 +221,7 @@
                 // Add completion message
                 const completionDiv = document.createElement('div');
                 completionDiv.style.marginTop = '50px';
-                completionDiv.style.color = '#00f3ff'; // Changed from purple to blue
+                completionDiv.style.color = '#ff00ff';
                 completionDiv.style.textAlign = 'center';
                 completionDiv.innerHTML = `
                     <h2>EASTER EGG ACTIVATED!</h2>
@@ -520,15 +520,27 @@
             const el = document.querySelector(selector);
             if (!el) return false;
             
-            // Apply highlight styles using class instead of direct style manipulation
-            el.classList.add('cyberExtractor-highlight');
+            // Save original styles
+            const originalOutline = el.style.outline;
+            const originalBgColor = el.style.backgroundColor;
+            const originalPosition = el.style.position;
+            const originalZIndex = el.style.zIndex;
+            
+            // Apply highlight styles
+            el.style.outline = '3px solid #ff00ff';
+            el.style.backgroundColor = 'rgba(255, 0, 255, 0.1)';
+            el.style.position = 'relative';
+            el.style.zIndex = '9999';
             
             // Scroll into view with smooth animation
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             
             // Reset after 3 seconds
             setTimeout(() => {
-                el.classList.remove('cyberExtractor-highlight');
+                el.style.outline = originalOutline;
+                el.style.backgroundColor = originalBgColor;
+                el.style.position = originalPosition;
+                el.style.zIndex = originalZIndex;
             }, 3000);
             
             return true;
@@ -543,8 +555,8 @@
     cyberStyles.textContent = `
         /* CyberExtractor easter egg styles */
         .cyberExtractor-highlight {
-            outline: 3px solid #00f3ff !important; /* Changed to blue instead of purple */
-            background-color: rgba(0, 243, 255, 0.1) !important; /* Light blue background */
+            outline: 3px solid #ff00ff !important;
+            background-color: rgba(255, 0, 255, 0.1) !important;
             position: relative !important;
             z-index: 9999 !important;
             transition: all 0.3s ease !important;

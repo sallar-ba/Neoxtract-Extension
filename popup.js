@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let allEmails = [];
     let filteredEmails = [];
     let isExtractingEmails = false;
+    let linksGlitchInterval = null;
     let currentTab = 'links';
     let konami = [];
     let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
@@ -80,8 +81,15 @@ document.addEventListener('DOMContentLoaded', function() {
     let clickCount = 0;
     let lastHeaderClick = 0;
 
-    // Initialize matrix rain animation
-    initMatrixRain();
+    // Initialize matrix rain animation (defer to idle for faster first paint)
+    const startMatrix = () => {
+        try { initMatrixRain(); } catch (e) {}
+    };
+    if ('requestIdleCallback' in window) {
+        requestIdleCallback(startMatrix, { timeout: 1200 });
+    } else {
+        setTimeout(startMatrix, 300);
+    }
 
     // Tab event listeners with animation
     linksTab.addEventListener('click', () => switchTab('links'));
@@ -153,10 +161,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Export Excel button
-    exportExcelBtn.addEventListener('click', () => {
+    exportExcelBtn.addEventListener('click', async () => {
         try {
             exportExcelBtn.disabled = true;
             exportExcelBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">PROCESSING...</span>';
+
+            // Lazy load XLSX only when needed
+            await ensureXlsxLoaded();
 
             const worksheetData = [
                 ['URL', 'TEXT', 'TYPE', 'DOMAIN', 'VISIBLE']
@@ -174,33 +185,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
-            // Set column widths
-            const cols = [
-                { wch: 50 }, // URL
-                { wch: 30 }, // Text
-                { wch: 10 }, // Type
-                { wch: 20 }, // Domain
-                { wch: 10 }  // Visible
+            ws['!cols'] = [
+                { wch: 50 },
+                { wch: 30 },
+                { wch: 10 },
+                { wch: 20 },
+                { wch: 10 }
             ];
-            ws['!cols'] = cols;
-
             XLSX.utils.book_append_sheet(wb, ws, 'Links');
             XLSX.writeFile(wb, `links-${Date.now()}.xlsx`);
 
             showNotification('LINKS EXPORTED TO EXCEL');
-
-            // Add secret text at end of file as easter egg
-            if (debugMode) {
-                console.log('%c[DEBUG] Added Easter Egg to Excel file', 'color: #00f3ff');
-            }
-            
-            exportExcelBtn.disabled = false;
-            exportExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
         } catch (err) {
             showError('EXPORT FAILED: ' + err.message);
+        } finally {
             exportExcelBtn.disabled = false;
-            exportExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
+            exportExcelBtn.innerHTML = '<span class="button-icon">〈📊〉</span><span class="button-text">EXCEL</span>';
         }
     });
 
@@ -237,10 +237,13 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Export Emails to Excel
-    exportEmailsExcelBtn.addEventListener('click', () => {
+    exportEmailsExcelBtn.addEventListener('click', async () => {
         try {
             exportEmailsExcelBtn.disabled = true;
             exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">PROCESSING...</span>';
+
+            // Lazy load XLSX only when needed
+            await ensureXlsxLoaded();
 
             const worksheetData = [
                 ['EMAIL', 'DOMAIN', 'SOURCE', 'VISIBLE', 'CONTEXT']
@@ -258,28 +261,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-
-            // Set column widths
-            const cols = [
-                { wch: 30 }, // Email
-                { wch: 20 }, // Domain
-                { wch: 15 }, // Source
-                { wch: 10 }, // Visible
-                { wch: 50 }  // Context
+            ws['!cols'] = [
+                { wch: 30 },
+                { wch: 20 },
+                { wch: 15 },
+                { wch: 10 },
+                { wch: 50 }
             ];
-            ws['!cols'] = cols;
-
             XLSX.utils.book_append_sheet(wb, ws, 'Emails');
             XLSX.writeFile(wb, `emails-${Date.now()}.xlsx`);
 
             showNotification('EMAILS EXPORTED TO EXCEL');
-            
-            exportEmailsExcelBtn.disabled = false;
-            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
         } catch (err) {
             showError('EXPORT FAILED: ' + err.message);
+        } finally {
             exportEmailsExcelBtn.disabled = false;
-            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
+            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">〈📊〉</span><span class="button-text">EXCEL</span>';
         }
     });
 
@@ -602,28 +599,27 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!filteredLinks || filteredLinks.length === 0) {
             linksContainer.innerHTML = `
                 <div class="placeholder">
-                    <div class="placeholder-icon">⟨🔍⟩</div>
+                    <div class="placeholder-icon">〈🔍〉</div>
                     <div class="placeholder-text">NO LINKS FOUND</div>
                 </div>
             `;
             linkCount.textContent = 'NO LINKS FOUND';
+            // Clear any running interval
+            if (linksGlitchInterval) {
+                clearInterval(linksGlitchInterval);
+                linksGlitchInterval = null;
+            }
             return;
         }
         
         linkCount.textContent = `${filteredLinks.length} LINKS FOUND`;
-        
         linksContainer.innerHTML = '';
-        
-        // Limit display to only 25 links
+
         const linksToDisplay = filteredLinks.slice(0, 25);
-        
         linksToDisplay.forEach(link => {
             const linkEl = document.createElement('div');
             linkEl.className = 'link-item';
-            
             const isExternal = link.isExternal ? 'external' : 'internal';
-            const isVisible = link.isVisible ? 'visible' : 'hidden';
-            
             linkEl.innerHTML = `
                 <div class="link-header">
                     <div class="link-type ${isExternal}">${isExternal.toUpperCase()}</div>
@@ -636,17 +632,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     <button class="btn-small highlight-link" ${!link.isVisible ? 'disabled' : ''}>HIGHLIGHT</button>
                 </div>
             `;
-            
             const copyBtn = linkEl.querySelector('.copy-link');
             copyBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 navigator.clipboard.writeText(link.url).then(() => {
                     showNotification('LINK COPIED');
-                }).catch(err => {
+                }).catch(() => {
                     showError('COPY FAILED');
                 });
             });
-            
             const highlightBtn = linkEl.querySelector('.highlight-link');
             if (link.isVisible) {
                 highlightBtn.addEventListener('click', (e) => {
@@ -654,36 +648,35 @@ document.addEventListener('DOMContentLoaded', function() {
                     highlightElementOnPage(link.selector);
                 });
             }
-            
             linksContainer.appendChild(linkEl);
         });
-        
-        // Add glitch animation to random link every 10 seconds
-        if (filteredLinks.length > 0) {
-            setInterval(() => {
-                const links = document.querySelectorAll('.link-item');
-                if (links.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * links.length);
-                    const randomLink = links[randomIndex];
-                    randomLink.style.animation = 'glitch 0.3s';
-                    setTimeout(() => {
-                        randomLink.style.animation = '';
-                    }, 300);
-                }
-            }, 10000);
-            
-            // Add pagination info at the bottom
-            if (filteredLinks.length > 25) {
-                const paginationInfo = document.createElement('div');
-                paginationInfo.className = 'pagination-info';
-                paginationInfo.textContent = `Showing 25/${filteredLinks.length}`;
-                paginationInfo.style.textAlign = 'center';
-                paginationInfo.style.padding = '10px';
-                paginationInfo.style.color = 'var(--neon-blue)';
-                paginationInfo.style.fontFamily = 'Share Tech Mono, monospace';
-                paginationInfo.style.fontSize = '14px';
-                linksContainer.appendChild(paginationInfo);
+
+        // Clear existing interval before starting a new one
+        if (linksGlitchInterval) {
+            clearInterval(linksGlitchInterval);
+        }
+        linksGlitchInterval = setInterval(() => {
+            const links = document.querySelectorAll('.link-item');
+            if (links.length > 0) {
+                const randomIndex = Math.floor(Math.random() * links.length);
+                const randomLink = links[randomIndex];
+                randomLink.style.animation = 'glitch 0.3s';
+                setTimeout(() => {
+                    randomLink.style.animation = '';
+                }, 300);
             }
+        }, 10000);
+
+        if (filteredLinks.length > 25) {
+            const paginationInfo = document.createElement('div');
+            paginationInfo.className = 'pagination-info';
+            paginationInfo.textContent = `Showing 25/${filteredLinks.length}`;
+            paginationInfo.style.textAlign = 'center';
+            paginationInfo.style.padding = '10px';
+            paginationInfo.style.color = 'var(--neon-blue)';
+            paginationInfo.style.fontFamily = 'Share Tech Mono, monospace';
+            paginationInfo.style.fontSize = '14px';
+            linksContainer.appendChild(paginationInfo);
         }
     }
 
@@ -906,11 +899,9 @@ document.addEventListener('DOMContentLoaded', function() {
         easterEggModal.querySelector('.easter-egg-header h3').textContent = title;
         easterEggModal.classList.add('show');
         
-        // Audio disabled - no sound will play
-        /*
+        // Add achievement sound
         const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vm//lNuPXkQyM//Jnw//wH///iv/////3///+7/////cAAAA3QAAABfJy49Bd/HQkYAAAADCQdM7dm8LJJpavpakxLnLViiStS0nJ/JvGp+YcbzVO3ANYQg+Md0zKoYJ8yNKcaLm29vblSft61dMzpK0TzqqVrFYUnTZKfTpSk9TIOWBLY5LquNZk1IHTuZLTta9XnlW7V13Vd227ji+vu5O8r9crvquPq5RwP/un91dM3TZPT1uFff+9i20xq+vrRb7/2m8t1++ndnrc2TJV22ZdVVfcOfK3b9xwNl7quHn5em7TuWUqdW8v9o9urqpN6zrNa7ixbKbt1Vp3uufFaVu9Wfj1du6vTROt3V3WjvGv5Ss+V6nab6Ou+6HutW9J13Z7Ld9w/FtX+9yrW97vtpVvV1qK+7fvxb26O29D76uWd23WrZO7e3evM/f6vdt+3d/W3t5+/2/d72znf7933e9c/Pu77jt');
         audio.play();
-        */
     }
     
     function checkAllEasterEggs() {
@@ -1183,6 +1174,18 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             addTerminalLine("> 42");
         }, 2000);
+    }
+
+    // Ensure XLSX is loaded only when requested
+    async function ensureXlsxLoaded() {
+        if (window.XLSX) return;
+        await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'lib/xlsx.min.js';
+            script.onload = resolve;
+            script.onerror = () => reject(new Error('Failed to load XLSX library'));
+            document.head.appendChild(script);
+        });
     }
 });
 

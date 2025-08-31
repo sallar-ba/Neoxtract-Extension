@@ -1,0 +1,6 @@
+{
+  "appName": {"message": "CyberExtractor – Extracteur de liens et d’e-mails", "description": "Nom de l’extension"},
+  "appShortName": {"message": "CyberXtract", "description": "Nom court"},
+  "appDesc": {"message": "Extrayez liens et e‑mails de n’importe quelle page. Filtrer, rechercher, copier, exporter (JSON/Excel). Rapide et respectueux de la vie privée.", "description": "Description"},
+  "actionTitle": {"message": "Ouvrir CyberExtractor", "description": "Titre de l’action"}
+}

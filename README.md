@@ -2,7 +2,13 @@
 
 A Chrome extension for extracting links and emails from web pages with a unique cyberpunk/retro-futuristic theme.
 
-## 🔮 Features
+SEO-friendly summary
+- Link extractor and email extractor for any webpage
+- Filter internal/external, visible/hidden; live search
+- Copy results or export to JSON and Excel (XLSX)
+- Fast popup, no tracking, privacy-friendly
+
+## 🔎 Features
 
 - Extract all links from the current page
 - Filter links by internal/external
@@ -13,55 +19,39 @@ A Chrome extension for extracting links and emails from web pages with a unique 
 - Interactive cyberpunk UI with animations and effects
 - Hidden Easter eggs and features
 
-## 🔧 Installation
+## 🧭 Installation
 
 1. Download or clone this repository
 2. Open Chrome and navigate to `chrome://extensions/`
 3. Enable "Developer mode" in the top-right corner
 4. Click "Load unpacked" and select the extension folder
-5. The extension is now installed and ready to use
 
-## 🎮 Easter Eggs & Hidden Features
+## 🧪 Usage
 
-The extension includes several hidden features you can discover:
+1. Open any webpage
+2. Click the extension icon
+3. Choose LINKS or EMAILS, then Extract
+4. Filter/search, Copy, or Export (JSON/XLSX)
 
-1. **Konami Code**: Enter the famous sequence ↑ ↑ ↓ ↓ ← → ← → B A
-2. **Terminal Access**: Try finding the secret terminal button
-3. **Secret Commands**: The terminal accepts various commands
-4. **Hidden Click Pattern**: Some elements react to specific click patterns
-5. **Voice Commands**: Try speaking to the extension (if microphone access is allowed)
+## 🌐 Localization (i18n)
 
-## 📊 How to Use
+- Default locale: `en`
+- Manifest strings use `__MSG_*__` placeholders
+- Add more locales under `_locales/<lang>/messages.json`
 
-1. Navigate to any webpage
-2. Click the extension icon to open the popup
-3. Click "EXTRACT LINKS" to extract links from the current page
-4. Use the filters and search to find specific links
-5. Copy links or export them to JSON or Excel
-6. Switch to the "EMAILS" tab to extract email addresses
+## 🛡️ Privacy
 
-## 🎛️ Terminal Commands
+- No analytics, no remote calls. All processing is local.
 
-The secret terminal accepts various commands:
+## 🛠️ Dev Notes
 
-- `help` - Show available commands
-- `clear` - Clear terminal
-- `matrix` - Toggle matrix rain effect
-- `theme` - Change theme (cyber/retro/neon/dark/hacker)
-- `hack` - Launch a hacking mini-game
-- `about` - Show extension info
-- `ls` - List all commands
-- `debug` - Toggle debug mode
-- `stats` - Show usage statistics
-- `flip` - Flip the UI upside down
-- `disco` - Toggle disco mode
-- `exit` - Close terminal
-
-Plus some hidden commands you'll need to discover...
+- XLSX is lazy-loaded to speed popup load
+- Animations deferred on idle; interval leak fixed
+- Store listing draft: `STORE-LISTING.md`
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT
 
 ---
 
