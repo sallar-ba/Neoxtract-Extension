@@ -9,16 +9,371 @@ document.addEventListener('DOMContentLoaded', function() {
     const linksContainer = document.getElementById('linksContainer');
     const linkCount = document.getElementById('linkCount');
     
+    // Usage limit elements
+    const usageCount = document.getElementById('usageCount');
+    const usageProgressFill = document.getElementById('usageProgressFill');
+    const usageFooter = document.getElementById('usageFooter');
+    
     let allLinks = [];
     let filteredLinks = [];
     let isExtracting = false;
     
+    // Usage limit configuration
+    const DAILY_LIMIT = 5;
+    const STORAGE_KEY = 'linkExtractorUsage';
+    const DEVICE_KEY = 'linkExtractorDevice';
+    const INSTALL_KEY = 'linkExtractorInstall';
+    
+    // Initialize usage tracking
+    initializeUsageTracking();
+    
+    // Add event listeners for usage UI elements
+    const resetUsageBtn = document.getElementById('resetUsageBtn');
+    
+    if (resetUsageBtn) {
+        resetUsageBtn.addEventListener('click', resetUsageForTesting);
+    }
+    
     // Auto-extract links when popup opens
     autoExtractLinks();
+    
+    // Usage tracking functions
+    async function initializeUsageTracking() {
+        try {
+            // Generate a simple device fingerprint for secondary validation
+            const deviceId = await getOrCreateDeviceId();
+            
+            // Get current usage data
+            const result = await chrome.storage.sync.get([STORAGE_KEY, INSTALL_KEY]);
+            const today = new Date().toDateString();
+            let usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Check if this is a first-time install
+            if (!result[INSTALL_KEY]) {
+                await chrome.storage.sync.set({ 
+                    [INSTALL_KEY]: { 
+                        date: Date.now(), 
+                        deviceId: deviceId 
+                    } 
+                });
+            }
+            
+            // Reset count if it's a new day
+            if (usageData.date !== today) {
+                usageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: deviceId,
+                    created: usageData.created || Date.now(),
+                    lastReset: Date.now()
+                };
+                await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
+            }
+            
+            // Validate device consistency (simple anti-abuse measure)
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                // Device mismatch detected - could be data from another device or tampering
+                console.log('Device mismatch detected, checking for data loss scenario...');
+                await handleDeviceMismatch(usageData, deviceId, today);
+                return;
+            }
+            
+            updateUsageDisplay(usageData.count);
+        } catch (error) {
+            console.error('Error initializing usage tracking:', error);
+            // Fallback to conservative approach
+            showStorageError();
+            updateUsageDisplay(0);
+        }
+    }
+    
+    async function getOrCreateDeviceId() {
+        try {
+            // Create a simple device fingerprint using available browser info
+            const fingerprint = btoa(
+                navigator.userAgent.slice(0, 20) + 
+                navigator.language + 
+                screen.width + 'x' + screen.height +
+                new Date().getTimezoneOffset()
+            ).slice(0, 16);
+            
+            const result = await chrome.storage.sync.get([DEVICE_KEY]);
+            if (result[DEVICE_KEY]) {
+                return result[DEVICE_KEY];
+            }
+            
+            // Store the device ID
+            await chrome.storage.sync.set({ [DEVICE_KEY]: fingerprint });
+            return fingerprint;
+        } catch (error) {
+            console.error('Error creating device ID:', error);
+            return 'fallback-device';
+        }
+    }
+    
+    async function handleDeviceMismatch(oldData, newDeviceId, today) {
+        try {
+            // This could be a legitimate case where:
+            // 1. User is on a different device (sync storage)
+            // 2. User cleared extension data
+            // 3. Browser profile was reset
+            
+            const installData = await chrome.storage.sync.get([INSTALL_KEY]);
+            const daysSinceInstall = installData[INSTALL_KEY] ? 
+                Math.floor((Date.now() - installData[INSTALL_KEY].date) / (1000 * 60 * 60 * 24)) : 0;
+            
+            // If it's been more than a day since install, be more lenient
+            if (daysSinceInstall > 0) {
+                // Reset with grace period
+                const resetData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: newDeviceId,
+                    created: Date.now(),
+                    gracePeriod: true,
+                    lastReset: Date.now()
+                };
+                await chrome.storage.sync.set({ [STORAGE_KEY]: resetData });
+                updateUsageDisplay(0);
+                showDataResetMessage();
+            } else {
+                // Recent install - might be trying to bypass limits
+                const conservativeData = { 
+                    date: today, 
+                    count: Math.min(oldData.count || 0, DAILY_LIMIT), 
+                    deviceId: newDeviceId,
+                    created: oldData.created || Date.now(),
+                    lastReset: Date.now()
+                };
+                await chrome.storage.sync.set({ [STORAGE_KEY]: conservativeData });
+                updateUsageDisplay(conservativeData.count);
+                showDeviceMismatchMessage();
+            }
+        } catch (error) {
+            console.error('Error handling device mismatch:', error);
+            updateUsageDisplay(DAILY_LIMIT); // Conservative approach
+        }
+    }
+    
+    function showStorageError() {
+        const usageFooter = document.getElementById('usageFooter');
+        usageFooter.innerHTML = `
+            <div class="usage-error">
+                <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                    ⚠️ Storage Error<br>
+                    <span style="font-size: 11px; color: #991b1b;">
+                        Unable to track usage. This may be due to browser restrictions.<br>
+                        Extension functionality may be limited.
+                    </span>
+                    <button id="retryBtn" style="
+                        margin-top: 8px;
+                        padding: 4px 8px;
+                        font-size: 10px;
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Retry</button>
+                </div>
+            </div>
+        `;
+        
+        // Add event listener for retry button
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                location.reload();
+            });
+        }
+    }
+    
+    function showDataResetMessage() {
+        showNotification(
+            'Usage data was reset due to storage changes. You have a fresh daily limit!', 
+            'info', 
+            4000
+        );
+    }
+    
+    function showDeviceMismatchMessage() {
+        showNotification(
+            'Device change detected. Usage count preserved for security.', 
+            'info', 
+            3000
+        );
+    }
+    
+    async function incrementUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            let usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Reset count if it's a new day
+            if (usageData.date !== today) {
+                usageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: deviceId,
+                    created: usageData.created || Date.now(),
+                    lastReset: Date.now()
+                };
+            }
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during increment, handling...');
+                await handleDeviceMismatch(usageData, deviceId, today);
+                const newResult = await chrome.storage.sync.get([STORAGE_KEY]);
+                usageData = newResult[STORAGE_KEY];
+            }
+            
+            usageData.count++;
+            usageData.lastUsed = Date.now();
+            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
+            updateUsageDisplay(usageData.count);
+            
+            return usageData.count;
+        } catch (error) {
+            console.error('Error incrementing usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    async function getCurrentUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            const usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Return limit if it's a new day (will be reset on next operation)
+            if (usageData.date !== today) {
+                return 0;
+            }
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during get, returning conservative count');
+                return Math.min(usageData.count || 0, DAILY_LIMIT);
+            }
+            
+            return usageData.count || 0;
+        } catch (error) {
+            console.error('Error getting usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    function updateUsageDisplay(count) {
+        const remaining = Math.max(0, DAILY_LIMIT - count);
+        const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
+        
+        // Update count display
+        usageCount.textContent = `${count}/${DAILY_LIMIT}`;
+        
+        // Update progress bar
+        usageProgressFill.style.width = `${percentage}%`;
+        
+        // Update progress bar color based on usage
+        usageProgressFill.className = 'usage-progress-fill';
+        if (percentage >= 100) {
+            usageProgressFill.classList.add('danger');
+        } else if (percentage >= 80) {
+            usageProgressFill.classList.add('warning');
+        }
+        
+        // Update footer content
+        if (count >= DAILY_LIMIT) {
+            showLimitReached();
+        } else if (count >= DAILY_LIMIT - 1) {
+            usageFooter.innerHTML = `
+                <span class="usage-remaining">${remaining} extraction remaining today</span>
+                <div class="usage-upgrade-prompt">
+                    <div class="usage-upgrade-text">Almost at your daily limit!</div>
+                    <button class="usage-upgrade-btn" id="upgradeBtn">
+                        💎 Upgrade for Unlimited
+                    </button>
+                </div>
+            `;
+            
+            // Add event listener for dynamically created button
+            const upgradeBtn = document.getElementById('upgradeBtn');
+            if (upgradeBtn) upgradeBtn.addEventListener('click', openUpgradePage);
+        } else {
+            usageFooter.innerHTML = `
+                <span class="usage-remaining">${remaining} extractions remaining today</span>
+            `;
+        }
+    }
+    
+    function showLimitReached() {
+        usageFooter.innerHTML = `
+            <div class="usage-limit-reached">
+                <div class="limit-title">Daily Limit Reached</div>
+                <div class="limit-message">
+                    You've used all 5 free extractions today. Upgrade to continue extracting links!
+                </div>
+                <button class="limit-upgrade-btn" id="limitUpgradeBtn">
+                    💎 Upgrade to Pro
+                </button>
+                <div class="limit-reset-info">
+                    Free limit resets at midnight
+                </div>
+                <button id="resetUsageBtn" style="
+                    margin-top: 8px;
+                    padding: 4px 8px;
+                    font-size: 10px;
+                    background: #e5e7eb;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    color: #6b7280;
+                ">Reset Usage (Testing)</button>
+            </div>
+        `;
+        
+        // Add event listeners for dynamically created buttons
+        const limitUpgradeBtn = document.getElementById('limitUpgradeBtn');
+        const resetBtn = document.getElementById('resetUsageBtn');
+        if (limitUpgradeBtn) limitUpgradeBtn.addEventListener('click', openUpgradePage);
+        if (resetBtn) resetBtn.addEventListener('click', resetUsageForTesting);
+        
+        // Disable the extract button
+        extractBtn.disabled = true;
+        extractBtn.textContent = '🚫 Daily Limit Reached';
+        extractBtn.style.opacity = '0.6';
+        extractBtn.style.cursor = 'not-allowed';
+    }
     
     // Extract links function (can be called manually or automatically)
     async function extractLinks() {
         if (isExtracting) return;
+        
+        // Check usage limit before proceeding
+        const currentUsage = await getCurrentUsageCount();
+        if (currentUsage >= DAILY_LIMIT) {
+            showLimitReached();
+            showNotification('Daily extraction limit reached! Upgrade to continue.', 'error', 4000);
+            return;
+        }
         
         isExtracting = true;
         showLoading(true);
@@ -46,6 +401,9 @@ document.addEventListener('DOMContentLoaded', function() {
             let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
             
             if (response && response.success) {
+                // Increment usage count only on successful extraction
+                await incrementUsageCount();
+                
                 allLinks = response.data.links;
                 updateLinkCount(response.data);
                 enableControls();
@@ -113,11 +471,28 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-extract links when popup opens
     async function autoExtractLinks() {
         try {
+            // Check usage limit before auto-extracting
+            const currentUsage = await getCurrentUsageCount();
+            if (currentUsage >= DAILY_LIMIT) {
+                showLimitReached();
+                linksContainer.innerHTML = `
+                    <div class="placeholder">
+                        <div style="margin-bottom: 12px;">🚫 Daily extraction limit reached</div>
+                        <div style="font-size: 12px; color: #6b7280;">
+                            You've used all 5 free extractions today.<br>
+                            Upgrade to Pro for unlimited extractions!
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
             // Small delay to ensure popup is fully loaded
             await new Promise(resolve => setTimeout(resolve, 100));
             await extractLinks();
         } catch (error) {
             // Don't show error for auto-extract, just leave the manual button available
+            console.log('Auto-extract failed:', error);
         }
     }
     
@@ -567,3 +942,160 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 3000);
     }
 });
+
+// Global functions for upgrade functionality
+window.openUpgradePage = function() {
+    // This would typically open a payment/upgrade page
+    // For now, we'll show a modal or redirect to a pricing page
+    chrome.tabs.create({
+        url: 'https://linkextractor.pro/upgrade', // Replace with your actual upgrade URL
+        active: true
+    });
+    
+    // Alternative: Show a modal within the extension
+    showUpgradeModal();
+};
+
+// Show usage information to help users understand how limits work
+window.showUsageInfo = function() {
+    const infoModal = document.createElement('div');
+    infoModal.className = 'info-modal';
+    infoModal.innerHTML = `
+        <div class="info-content">
+            <h3>📊 Usage Limit Information</h3>
+            <div class="info-section">
+                <h4>How it works:</h4>
+                <ul>
+                    <li>• Free users get 5 link extractions per day</li>
+                    <li>• Usage resets every day at midnight</li>
+                    <li>• Data syncs across all your devices</li>
+                    <li>• Clearing browser cache won't reset your limit</li>
+                </ul>
+            </div>
+            <div class="info-section">
+                <h4>Data persistence:</h4>
+                <ul>
+                    <li>• Your usage is stored in Chrome's sync storage</li>
+                    <li>• It persists across browser restarts and cache clearing</li>
+                    <li>• Only extension uninstall/reinstall will reset data</li>
+                </ul>
+            </div>
+            <div class="info-section">
+                <h4>Need more extractions?</h4>
+                <p>Upgrade to Pro for unlimited daily extractions, advanced features, and priority support!</p>
+                <button id="modalUpgradeBtn" style="
+                    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+                    color: white;
+                    border: none;
+                    padding: 8px 16px;
+                    border-radius: 6px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-top: 8px;
+                ">💎 Upgrade Now</button>
+            </div>
+            <button id="closeModalBtn" style="
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                background: none;
+                border: none;
+                font-size: 18px;
+                cursor: pointer;
+                opacity: 0.6;
+            ">✕</button>
+        </div>
+    `;
+    
+    document.body.appendChild(infoModal);
+    
+    // Add event listeners for modal buttons
+    const modalUpgradeBtn = infoModal.querySelector('#modalUpgradeBtn');
+    const closeModalBtn = infoModal.querySelector('#closeModalBtn');
+    
+    if (modalUpgradeBtn) {
+        modalUpgradeBtn.addEventListener('click', () => {
+            openUpgradePage();
+            closeInfoModal();
+        });
+    }
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeInfoModal);
+    }
+    
+    setTimeout(() => {
+        infoModal.classList.add('show');
+    }, 10);
+};
+
+window.closeInfoModal = function() {
+    const modal = document.querySelector('.info-modal');
+    if (modal) {
+        modal.classList.remove('show');
+        setTimeout(() => {
+            if (document.body.contains(modal)) {
+                document.body.removeChild(modal);
+            }
+        }, 300);
+    }
+};
+
+// Testing function to reset usage count
+window.resetUsageForTesting = async function() {
+    try {
+        // Define the storage keys (since they're not in global scope)
+        const STORAGE_KEY = 'linkExtractorUsage';
+        const DEVICE_KEY = 'linkExtractorDevice';
+        const INSTALL_KEY = 'linkExtractorInstall';
+        
+        // Clear all usage-related storage
+        await chrome.storage.sync.remove([STORAGE_KEY, DEVICE_KEY, INSTALL_KEY]);
+        
+        // Show confirmation
+        const notification = document.createElement('div');
+        notification.className = 'notification success';
+        notification.textContent = 'Usage data cleared! Reloading...';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+        
+        // Reload after a short delay
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    } catch (error) {
+        console.error('Error resetting usage:', error);
+        const notification = document.createElement('div');
+        notification.className = 'notification error';
+        notification.textContent = 'Error clearing usage data';
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+    }
+};
+
+function showUpgradeModal() {
+    // Create a simple notification since we can't easily access the showNotification function from global scope
+    const notification = document.createElement('div');
+    notification.className = 'notification info';
+    notification.textContent = 'Upgrade to Pro for unlimited daily extractions, advanced filters, and priority support!';
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.classList.add('show');
+    }, 10);
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => {
+            if (document.body.contains(notification)) {
+                document.body.removeChild(notification);
+            }
+        }, 300);
+    }, 5000);
+}

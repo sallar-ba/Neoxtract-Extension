@@ -5,6 +5,8 @@ A powerful and elegant Chrome extension that extracts all links from any webpage
 ## ✨ Features
 
 - **🔄 Automatic Link Extraction**: Instantly extracts all links when you open the popup
+- **⚡ Daily Usage Tracking**: Beautiful progress bar showing extraction limits (5 per day)
+- **💎 Upgrade Prompts**: Elegant upgrade prompts for unlimited extractions
 - **🔍 Smart Search & Filter**: Search links and filter by internal/external
 - **📊 Excel Export**: Export links to Excel (.xlsx) with full data
 - **💾 JSON Export**: Export as structured JSON data
@@ -24,6 +26,8 @@ A powerful and elegant Chrome extension that extracts all links from any webpage
 
 The extension features a modern, clean interface with:
 - **Gradient header** with clear branding
+- **Aesthetic usage limit bar** with animated progress and color coding
+- **Upgrade prompts** for users approaching or exceeding limits
 - **Compact export buttons** in a 2x1 grid layout
 - **Highlighted Excel export** as the primary action
 - **Responsive design** that works smoothly
