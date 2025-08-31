@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const linksContainer = document.getElementById('linksContainer');
     const linkCount = document.getElementById('linkCount');
     
+    // Mode toggle elements
+    const autoModeBtn = document.getElementById('autoModeBtn');
+    const manualModeBtn = document.getElementById('manualModeBtn');
+    
     // Usage limit elements
     const usageCount = document.getElementById('usageCount');
     const usageProgressFill = document.getElementById('usageProgressFill');
@@ -17,15 +21,20 @@ document.addEventListener('DOMContentLoaded', function() {
     let allLinks = [];
     let filteredLinks = [];
     let isExtracting = false;
+    let isAutoMode = true; // Default to auto mode
     
     // Usage limit configuration
     const DAILY_LIMIT = 5;
     const STORAGE_KEY = 'linkExtractorUsage';
     const DEVICE_KEY = 'linkExtractorDevice';
     const INSTALL_KEY = 'linkExtractorInstall';
+    const MODE_KEY = 'linkExtractorMode'; // Store user's preferred mode
     
     // Initialize usage tracking
     initializeUsageTracking();
+    
+    // Initialize mode from storage
+    initializeMode();
     
     // Add event listeners for usage UI elements
     const resetUsageBtn = document.getElementById('resetUsageBtn');
@@ -34,8 +43,15 @@ document.addEventListener('DOMContentLoaded', function() {
         resetUsageBtn.addEventListener('click', resetUsageForTesting);
     }
     
-    // Auto-extract links when popup opens
-    autoExtractLinks();
+    // Add event listeners for mode toggle
+    if (autoModeBtn) {
+        autoModeBtn.addEventListener('click', () => setMode('auto'));
+    }
+    if (manualModeBtn) {
+        manualModeBtn.addEventListener('click', () => setMode('manual'));
+    }
+    
+    // Auto-extract will be handled in initializeMode() after mode is loaded
     
     // Usage tracking functions
     async function initializeUsageTracking() {
@@ -468,6 +484,75 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
+    // Mode management functions
+    async function initializeMode() {
+        try {
+            const result = await chrome.storage.sync.get([MODE_KEY]);
+            const savedMode = result[MODE_KEY] || 'auto';
+            await setMode(savedMode, false); // Don't save again when initializing
+            
+            // Only auto-extract if in auto mode and after mode is properly set
+            if (isAutoMode) {
+                setTimeout(() => {
+                    autoExtractLinks();
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Error loading mode preference:', error);
+            await setMode('auto', false); // Default to auto
+            
+            // Auto-extract for fallback auto mode
+            setTimeout(() => {
+                autoExtractLinks();
+            }, 100);
+        }
+    }
+    
+    async function setMode(mode, save = true) {
+        isAutoMode = mode === 'auto';
+        
+        // Update button text immediately
+        if (extractBtn) {
+            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔍 Extract Links';
+        }
+        
+        // Update button states with animation
+        if (autoModeBtn && manualModeBtn) {
+            autoModeBtn.classList.add('switching');
+            manualModeBtn.classList.add('switching');
+            
+            setTimeout(() => {
+                if (isAutoMode) {
+                    autoModeBtn.classList.add('active');
+                    manualModeBtn.classList.remove('active');
+                } else {
+                    autoModeBtn.classList.remove('active');
+                    manualModeBtn.classList.add('active');
+                }
+                
+                autoModeBtn.classList.remove('switching');
+                manualModeBtn.classList.remove('switching');
+            }, 150);
+        }
+        
+        // Save preference
+        if (save) {
+            try {
+                await chrome.storage.sync.set({ [MODE_KEY]: mode });
+            } catch (error) {
+                console.error('Error saving mode preference:', error);
+            }
+        }
+        
+        // If switching to auto mode and no links are extracted yet, auto-extract
+        // Only do this when save=true (user initiated mode change, not initialization)
+        if (isAutoMode && allLinks.length === 0 && save) {
+            setTimeout(() => {
+                autoExtractLinks();
+            }, 300);
+        }
+    }
+    
     // Auto-extract links when popup opens
     async function autoExtractLinks() {
         try {
@@ -892,7 +977,8 @@ document.addEventListener('DOMContentLoaded', function() {
             extractBtn.textContent = 'Extracting...';
         } else {
             extractBtn.disabled = false;
-            extractBtn.textContent = '🔄 Refresh Links';
+            // Set button text based on current mode
+            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔍 Extract Links';
         }
     }
     
@@ -941,7 +1027,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 300);
         }, 3000);
     }
-});
+    
+}); // End of DOMContentLoaded event listener
 
 // Global functions for upgrade functionality
 window.openUpgradePage = function() {
