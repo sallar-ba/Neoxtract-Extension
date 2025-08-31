@@ -1,0 +1,28 @@
+{
+  "name": "link-extractor-chrome-extension",
+  "version": "1.0.0",
+  "description": "A Chrome extension that extracts and analyzes all links from webpages",
+  "scripts": {
+    "build": "echo 'No build process needed - this is a pure Chrome extension'",
+    "dev": "echo 'Load the extension in Chrome using chrome://extensions/ in developer mode'",
+    "icons": "./create_icons.sh",
+    "package": "zip -r link-extractor-extension.zip . -x '*.git*' 'node_modules/*' '*.md' 'create_icons.sh' 'icon_generator.html' 'package.json'"
+  },
+  "keywords": [
+    "chrome-extension",
+    "link-extractor",
+    "web-scraping",
+    "browser-extension",
+    "javascript"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/link-extractor-extension"
+  },
+  "devDependencies": {},
+  "browserslist": [
+    "Chrome >= 88"
+  ]
+}
