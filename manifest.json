@@ -5,7 +5,8 @@
   "description": "Extract all links from the current web page",
   "permissions": [
     "activeTab",
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "action": {
     "default_popup": "popup.html",

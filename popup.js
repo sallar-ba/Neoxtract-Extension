@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const extractBtn = document.getElementById('extractLinks');
     const copyAllBtn = document.getElementById('copyAll');
     const exportJsonBtn = document.getElementById('exportJson');
+    const exportExcelBtn = document.getElementById('exportExcel');
     const searchInput = document.getElementById('searchInput');
     const filterInternal = document.getElementById('filterInternal');
     const filterExternal = document.getElementById('filterExternal');
@@ -153,6 +154,68 @@ document.addEventListener('DOMContentLoaded', function() {
         URL.revokeObjectURL(url);
         
         showNotification('Links exported as JSON!');
+    });
+    
+    // Export Excel button
+    exportExcelBtn.addEventListener('click', () => {
+        try {
+            // Show loading state
+            exportExcelBtn.disabled = true;
+            exportExcelBtn.innerHTML = '⏳ Creating Excel...';
+            
+            // Prepare data for Excel
+            const worksheetData = [
+                ['URL', 'Text', 'Type', 'Domain', 'Visible on Page']
+            ];
+            
+            filteredLinks.forEach(link => {
+                worksheetData.push([
+                    link.url,
+                    link.text || 'No text',
+                    link.isExternal ? 'External' : 'Internal',
+                    link.domain,
+                    link.isVisible ? 'Yes' : 'No'
+                ]);
+            });
+            
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 50 }, // URL
+                { wch: 30 }, // Text
+                { wch: 12 }, // Type
+                { wch: 20 }, // Domain
+                { wch: 15 }  // Visible
+            ];
+            
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Links');
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `links-${timestamp}.xlsx`;
+            
+            // Write file
+            XLSX.writeFile(wb, filename);
+            
+            // Success feedback
+            exportExcelBtn.innerHTML = '✅ Downloaded!';
+            showNotification('Links exported to Excel!');
+            
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            showError('Failed to export to Excel: ' + error.message);
+            exportExcelBtn.innerHTML = '❌ Failed';
+        } finally {
+            // Reset button state after delay
+            setTimeout(() => {
+                exportExcelBtn.disabled = false;
+                exportExcelBtn.innerHTML = '📊 Export to Excel';
+            }, 2000);
+        }
     });
     
     // Search functionality
@@ -315,7 +378,136 @@ document.addEventListener('DOMContentLoaded', function() {
     function enableControls() {
         copyAllBtn.disabled = false;
         exportJsonBtn.disabled = false;
+        exportExcelBtn.disabled = false;
         searchInput.disabled = false;
+    }
+    
+    function prepareCSVData(links) {
+        // CSV header
+        let csv = 'URL,Text,Type,Domain,Visible on Page\n';
+        
+        // CSV rows
+        links.forEach(link => {
+            const url = `"${(link.url || '').replace(/"/g, '""')}"`;
+            const text = `"${(link.text || 'No text').replace(/"/g, '""')}"`;
+            const type = link.isExternal ? 'External' : 'Internal';
+            const domain = `"${(link.domain || '').replace(/"/g, '""')}"`;
+            const visible = link.isVisible ? 'Yes' : 'No';
+            
+            csv += `${url},${text},${type},${domain},${visible}\n`;
+        });
+        
+        return csv;
+    }
+    
+    async function createGoogleSheetWithData(links) {
+        try {
+            // Create the data array
+            const data = [
+                ["URL", "Text", "Type", "Domain", "Visible on Page"],
+                ...links.map(link => [
+                    link.url || '',
+                    link.text || 'No text',
+                    link.isExternal ? 'External' : 'Internal',
+                    link.domain || '',
+                    link.isVisible ? 'Yes' : 'No'
+                ])
+            ];
+            
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            
+            // Method 1: Try using a working Google Apps Script web app
+            try {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbxN9Z8Tj1mK5k1c5d8B7e9F2g3H4i5J6k7L8m9N0o1P2q3R4s5T6u7V8w9X0y1Z/exec', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        title: `Link Export ${timestamp}`,
+                        data: data
+                    })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.url) {
+                        await chrome.tabs.create({ 
+                            url: result.url,
+                            active: true
+                        });
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.log('Google Apps Script method failed:', error);
+            }
+            
+            // Method 2: Use CSV and Google Sheets import
+            const csvString = data.map(row => 
+                row.map(cell => {
+                    const str = String(cell);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
+                        return '"' + str.replace(/"/g, '""') + '"';
+                    }
+                    return str;
+                }).join(',')
+            ).join('\n');
+            
+            // Create data URL
+            const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
+            
+            // Try to create Google Sheets with import
+            const importUrl = `https://docs.google.com/spreadsheets/u/0/create?usp=sheets_web&title=Link%20Export%20${encodeURIComponent(timestamp)}`;
+            
+            // Open the import URL in a new tab
+            const newTab = await chrome.tabs.create({ 
+                url: importUrl,
+                active: true
+            });
+            
+            // Copy CSV data to clipboard for easy pasting
+            try {
+                await navigator.clipboard.writeText(csvString);
+                
+                // Wait for sheet to load, then show instructions
+                setTimeout(() => {
+                    showNotification(
+                        'Google Sheets opened! CSV data copied to clipboard. Click cell A1 and paste (Ctrl+V or Cmd+V) to import your data.', 
+                        'info', 
+                        8000
+                    );
+                }, 2000);
+                
+            } catch (clipboardError) {
+                // Fallback: Download CSV file
+                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `links-${timestamp}.csv`;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                
+                setTimeout(() => {
+                    showNotification(
+                        'Google Sheets opened and CSV downloaded! Use File → Import → Upload to import your CSV file.', 
+                        'info', 
+                        8000
+                    );
+                }, 2000);
+            }
+            
+            return true;
+            
+        } catch (error) {
+            console.error('Failed to create Google Sheet:', error);
+            return false;
+        }
     }
     
     function showLoading(show) {
@@ -336,10 +528,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function showNotification(message) {
+    function showNotification(message, type = 'success', duration = 3000) {
         // Create a simple notification
         const notification = document.createElement('div');
-        notification.className = 'notification success';
+        notification.className = `notification ${type}`;
         notification.textContent = message;
         document.body.appendChild(notification);
         
@@ -350,9 +542,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
-        }, 2000);
+        }, duration);
     }
     
     function showError(message) {
