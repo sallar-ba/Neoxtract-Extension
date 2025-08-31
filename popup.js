@@ -26,20 +26,47 @@ document.addEventListener('DOMContentLoaded', function() {
             // Get the active tab
             const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
             
+            // Check if we can access the tab
+            if (!tab || !tab.url) {
+                throw new Error('No active tab found');
+            }
+            
+            // Check if it's a restricted page
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') || 
+                tab.url.startsWith('edge://') || 
+                tab.url.startsWith('about:')) {
+                throw new Error('Cannot access browser internal pages');
+            }
+            
+            console.log('Attempting to extract links from:', tab.url);
+            
             // Try to send message to existing content script
             let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
             
-            if (response.success) {
+            if (response && response.success) {
                 allLinks = response.data.links;
                 updateLinkCount(response.data);
                 enableControls();
                 filterAndDisplayLinks();
                 showSuccessMessage();
             } else {
-                showError('Failed to extract links: ' + response.error);
+                const errorMsg = response ? response.error : 'Unknown error occurred';
+                throw new Error('Failed to extract links: ' + errorMsg);
             }
         } catch (error) {
-            showError('Error extracting links. Try refreshing the page if the issue persists.');
+            console.error('Error extracting links:', error);
+            let userMessage = 'Error extracting links. ';
+            
+            if (error.message.includes('Cannot access browser internal pages')) {
+                userMessage += 'This extension cannot work on browser internal pages.';
+            } else if (error.message.includes('Could not communicate with page')) {
+                userMessage += 'Please refresh the page and try again.';
+            } else {
+                userMessage += 'Please refresh the page if the issue persists.';
+            }
+            
+            showError(userMessage);
         } finally {
             showLoading(false);
             isExtracting = false;
@@ -53,26 +80,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await chrome.tabs.sendMessage(tabId, message);
                 return response;
             } catch (error) {
+                console.log(`Message attempt ${attempt} failed:`, error);
                 
                 if (attempt === maxRetries) {
                     // Last attempt - try injecting content script
                     try {
+                        console.log('Attempting to inject content script...');
                         await chrome.scripting.executeScript({
                             target: { tabId: tabId },
                             files: ['content.js']
                         });
                         
-                        // Wait a bit for script to initialize
-                        await new Promise(resolve => setTimeout(resolve, 100));
+                        // Wait a bit longer for script to initialize
+                        await new Promise(resolve => setTimeout(resolve, 500));
                         
                         // Try one more time after injection
-                        return await chrome.tabs.sendMessage(tabId, message);
+                        const response = await chrome.tabs.sendMessage(tabId, message);
+                        return response;
                     } catch (injectionError) {
-                        throw new Error('Could not communicate with page. Please refresh and try again.');
+                        console.error('Content script injection failed:', injectionError);
+                        throw new Error('Could not communicate with page. Please refresh the page and try again.');
                     }
                 } else {
-                    // Wait before retrying
-                    await new Promise(resolve => setTimeout(resolve, 200 * attempt));
+                    // Wait before retrying with exponential backoff
+                    await new Promise(resolve => setTimeout(resolve, 300 * attempt));
                 }
             }
         }
@@ -170,8 +201,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="link-text">${link.text}</div>
                 <div class="link-actions">
-                    <button class="btn-small copy-link" data-url="${link.url}">Copy</button>
-                    <button class="btn-small highlight-link" data-link-id="${link.id}">Highlight</button>
+                    <button class="btn-small copy-link" data-url="${link.url}">
+                        <span class="icon">📋</span>Copy
+                    </button>
+                    <button class="btn-small highlight-link" data-link-id="${link.id}" ${!link.isVisible ? 'disabled title="Link not visible on page"' : ''}>
+                        <span class="icon">${link.isVisible ? '🎯' : '👁️'}</span>${link.isVisible ? 'Highlight' : 'Hidden'}
+                    </button>
                 </div>
             </div>
         `).join('');
@@ -183,35 +218,69 @@ document.addEventListener('DOMContentLoaded', function() {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 const url = btn.dataset.url;
+                
+                // Add visual feedback
+                btn.style.background = 'linear-gradient(135deg, #20c997, #17a2b8)';
+                btn.innerHTML = '<span class="icon">✅</span>Copied!';
+                
                 navigator.clipboard.writeText(url).then(() => {
-                    showNotification('Link copied!');
+                    showNotification('Link copied to clipboard!');
+                    
+                    // Reset button after a delay
+                    setTimeout(() => {
+                        btn.style.background = '';
+                        btn.innerHTML = '<span class="icon">📋</span>Copy';
+                    }, 1000);
                 }).catch(err => {
                     showError('Failed to copy link');
+                    // Reset button on error
+                    btn.style.background = '';
+                    btn.innerHTML = '<span class="icon">📋</span>Copy';
                 });
             });
         });
         
-        document.querySelectorAll('.highlight-link').forEach(btn => {
+        document.querySelectorAll('.highlight-link:not(:disabled)').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.preventDefault();
                 const linkId = parseInt(btn.dataset.linkId);
                 
+                // Add visual feedback
+                btn.style.background = 'linear-gradient(135deg, #ffc107, #fd7e14)';
+                btn.innerHTML = '<span class="icon">⚡</span>Highlighting...';
+                
                 try {
                     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                    await chrome.tabs.sendMessage(tab.id, { 
+                    const response = await chrome.tabs.sendMessage(tab.id, { 
                         action: 'highlightLink', 
                         linkId: linkId 
                     });
-                    showNotification('Link highlighted on page!');
+                    
+                    if (response.success) {
+                        showNotification('Link highlighted on page!');
+                        btn.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+                        btn.innerHTML = '<span class="icon">✨</span>Highlighted!';
+                        
+                        // Reset button after delay
+                        setTimeout(() => {
+                            btn.style.background = '';
+                            btn.innerHTML = '<span class="icon">🎯</span>Highlight';
+                        }, 2000);
+                    } else {
+                        throw new Error('Failed to highlight');
+                    }
                 } catch (error) {
-                    showError('Failed to highlight link');
+                    showError('Failed to highlight link on page');
+                    btn.style.background = '';
+                    btn.innerHTML = '<span class="icon">🎯</span>Highlight';
                 }
             });
         });
     }
     
     function updateLinkCount(data) {
-        linkCount.textContent = `${data.totalCount} links found (${data.internalCount} internal, ${data.externalCount} external)`;
+        const visibleText = data.visibleCount ? ` (${data.visibleCount} visible, ${data.hiddenCount} hidden)` : '';
+        linkCount.textContent = `${data.totalCount} links found${visibleText} - ${data.internalCount} internal, ${data.externalCount} external`;
     }
     
     function updateFilteredCount() {
