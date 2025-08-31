@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let allEmails = [];
     let filteredEmails = [];
     let isExtractingEmails = false;
+    let linksGlitchInterval = null;
     let currentTab = 'links';
     let konami = [];
     let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
