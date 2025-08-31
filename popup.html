@@ -3,102 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Link Extractor</title>
+    <title>NeoExtractor</title>
     <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="cyber-animations.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="header">
-        <h1>🔗📧 Link & Email Extractor</h1>
-        <p>Extract all links and emails from the current page</p>
-    </div>
+<body class="cyberpunk">
+    <div class="terminal-noise"></div>
+    <div class="scanline"></div>
+    <div class="crt-flicker"></div>
     
-    <!-- Usage Limit Progress Bar -->
-    <div class="usage-limit-container">
-        <div class="usage-header">
-            <span class="usage-text">Daily Usage</span>
-            <span class="usage-count" id="usageCount">0/50</span>
+    <header class="neo-header">
+        <div class="logo-container">
+            <div class="logo-glow"></div>
+            <h1 id="headerTitle" class="can-glitch"><span class="neo">NEO</span><span class="xtract">XTRACT</span></h1>
         </div>
-        <div class="usage-progress-bar">
-            <div class="usage-progress-fill" id="usageProgressFill"></div>
+        <div class="glitch-container">
+            <p class="subtitle" id="headerSubtitle">DATA_EXTRACTION_UTILITY v3.7</p>
         </div>
-        <div class="usage-footer" id="usageFooter">
-            <span class="usage-remaining">50 extractions remaining today</span>
+        <div class="neo-chip">
+            <div class="neo-chip-light"></div>
         </div>
+    </header>
+
+    <div class="matrix-rain-container">
+        <canvas id="matrixRain"></canvas>
     </div>
-    
-    <div class="content">
-        <!-- Tab Navigation -->
-        <div class="tab-navigation">
-            <button id="linksTab" class="tab-button active">🔗 Links</button>
-            <button id="emailsTab" class="tab-button">📧 Emails</button>
+
+    <div class="neo-content">
+        <!-- System Status -->
+        <div class="system-status">
+            <div class="system-status-light"></div>
+            <span class="system-status-text">SYSTEM ONLINE</span>
+            <div id="easterEggTrigger" class="system-status-button" title="Do not press">◉</div>
+        </div>
+
+        <!-- Tab Navigation - Styled like a terminal interface -->
+        <div class="terminal-tabs">
+            <button id="linksTab" class="terminal-tab active" data-tab="links">
+                <span class="tab-icon">⟨⚡⟩</span> LINKS
+            </button>
+            <button id="emailsTab" class="terminal-tab" data-tab="emails">
+                <span class="tab-icon">⟨✉⟩</span> EMAILS
+            </button>
+            <div class="tab-highlighter"></div>
         </div>
         
+        <!-- Secret Terminal Access (Easter Egg) -->
+        <div id="secretTerminal" class="secret-terminal hidden">
+            <div class="terminal-header">
+                <span>SECURE-SHELL v2.1</span>
+                <button id="closeTerminal" class="terminal-close">&times;</button>
+            </div>
+            <div class="terminal-output" id="terminalOutput">
+                <p>> System initialized...</p>
+                <p>> Type 'help' for available commands</p>
+            </div>
+            <div class="terminal-input-line">
+                <span class="prompt">$</span>
+                <input type="text" id="terminalInput" class="terminal-input" autocomplete="off" placeholder="Enter command...">
+            </div>
+        </div>
+
         <!-- Links Tab Content -->
-        <div id="linksTabContent" class="tab-content active">
-            <button id="extractLinks" class="btn btn-primary">🔄 Refresh Links</button>
-            
-            <div class="stats">
-                <span id="linkCount">Loading...</span>
+        <div id="linksTabContent" class="neo-tab-content active">
+            <button id="extractLinks" class="neo-button primary pulse">
+                <span class="button-icon">⟨⚡⟩</span>
+                <span class="button-text">EXTRACT LINKS</span>
+                <span class="button-glow"></span>
+            </button>
+
+            <div class="neo-stats">
+                <div class="stats-ring">
+                    <div class="stats-circle"></div>
+                </div>
+                <span id="linkCount" class="stats-text">READY TO EXTRACT</span>
             </div>
-            
-            <div class="search-container">
-                <input type="text" id="searchInput" placeholder="🔍 Search links..." disabled>
+
+            <div class="neo-search">
+                <div class="search-icon">⟨🔍⟩</div>
+                <input type="text" id="searchInput" class="search-input" placeholder="SEARCH LINKS..." disabled>
+                <div class="search-underline"></div>
             </div>
-            
-            <div class="filters">
-                <label>
-                    <input type="checkbox" id="filterInternal" checked> 🏠 Internal
+
+            <div class="neo-filters">
+                <label class="neo-checkbox">
+                    <input type="checkbox" id="filterInternal" checked>
+                    <div class="checkbox-visual"></div>
+                    <span>INTERNAL</span>
                 </label>
-                <label>
-                    <input type="checkbox" id="filterExternal" checked> 🌐 External
+                <label class="neo-checkbox">
+                    <input type="checkbox" id="filterExternal" checked>
+                    <div class="checkbox-visual"></div>
+                    <span>EXTERNAL</span>
                 </label>
             </div>
-            
-            <div class="links-container" id="linksContainer">
-                <div class="loading">Extracting links...</div>
+
+            <div class="neo-container" id="linksContainer">
+                <div class="placeholder">
+                    <div class="placeholder-icon">⟨⚡⟩</div>
+                    <div class="placeholder-text">AWAITING INPUT SIGNAL</div>
+                </div>
             </div>
-            
-            <div class="export-buttons">
-                <button id="copyAll" class="btn btn-secondary" disabled>📋 Copy All Links</button>
-                <button id="exportJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
-                <button id="exportExcel" class="btn btn-secondary" disabled>📊 Export to Excel</button>
+
+            <div class="neo-export">
+                <button id="copyAll" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨📋⟩</span>
+                    <span class="button-text">COPY ALL</span>
+                </button>
+                <button id="exportJson" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨💾⟩</span>
+                    <span class="button-text">JSON</span>
+                </button>
+                <button id="exportExcel" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨📊⟩</span>
+                    <span class="button-text">EXCEL</span>
+                </button>
             </div>
         </div>
-        
+
         <!-- Emails Tab Content -->
-        <div id="emailsTabContent" class="tab-content">
-            <button id="extractEmails" class="btn btn-primary">🔄 Refresh Emails</button>
-            
-            <div class="stats">
-                <span id="emailCount">Loading...</span>
+        <div id="emailsTabContent" class="neo-tab-content">
+            <button id="extractEmails" class="neo-button primary pulse">
+                <span class="button-icon">⟨✉⟩</span>
+                <span class="button-text">EXTRACT EMAILS</span>
+                <span class="button-glow"></span>
+            </button>
+
+            <div class="neo-stats">
+                <div class="stats-ring">
+                    <div class="stats-circle"></div>
+                </div>
+                <span id="emailCount" class="stats-text">READY TO EXTRACT</span>
             </div>
-            
-            <div class="search-container">
-                <input type="text" id="emailSearchInput" placeholder="🔍 Search emails..." disabled>
+
+            <div class="neo-search">
+                <div class="search-icon">⟨🔍⟩</div>
+                <input type="text" id="emailSearchInput" class="search-input" placeholder="SEARCH EMAILS..." disabled>
+                <div class="search-underline"></div>
             </div>
-            
-            <div class="filters">
-                <label>
-                    <input type="checkbox" id="filterVisibleEmails" checked> 👁️ Visible
+
+            <div class="neo-filters">
+                <label class="neo-checkbox">
+                    <input type="checkbox" id="filterVisibleEmails" checked>
+                    <div class="checkbox-visual"></div>
+                    <span>VISIBLE</span>
                 </label>
-                <label>
-                    <input type="checkbox" id="filterHiddenEmails" checked> 👻 Hidden
+                <label class="neo-checkbox">
+                    <input type="checkbox" id="filterHiddenEmails" checked>
+                    <div class="checkbox-visual"></div>
+                    <span>HIDDEN</span>
                 </label>
             </div>
-            
-            <div class="emails-container" id="emailsContainer">
-                <div class="loading">Extracting emails...</div>
+
+            <div class="neo-container" id="emailsContainer">
+                <div class="placeholder">
+                    <div class="placeholder-icon">⟨✉⟩</div>
+                    <div class="placeholder-text">AWAITING INPUT SIGNAL</div>
+                </div>
             </div>
-            
-            <div class="export-buttons">
-                <button id="copyAllEmails" class="btn btn-secondary" disabled>📋 Copy All Emails</button>
-                <button id="exportEmailsJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
-                <button id="exportEmailsExcel" class="btn btn-secondary" disabled>📊 Export to Excel</button>
+
+            <div class="neo-export">
+                <button id="copyAllEmails" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨📋⟩</span>
+                    <span class="button-text">COPY ALL</span>
+                </button>
+                <button id="exportEmailsJson" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨💾⟩</span>
+                    <span class="button-text">JSON</span>
+                </button>
+                <button id="exportEmailsExcel" class="neo-button secondary" disabled>
+                    <span class="button-icon">⟨📊⟩</span>
+                    <span class="button-text">EXCEL</span>
+                </button>
             </div>
         </div>
     </div>
-    
+
+    <!-- Notification System -->
+    <div class="neo-notification" id="notification">
+        <div class="notification-icon">⟨ℹ️⟩</div>
+        <div class="notification-content">
+            <div class="notification-text" id="notificationText"></div>
+            <div class="notification-progress"></div>
+        </div>
+    </div>
+
+    <!-- Easter Egg Modal -->
+    <div id="easterEggModal" class="easter-egg-modal">
+        <div class="easter-egg-content">
+            <div class="easter-egg-header">
+                <h3>SECRET DISCOVERED</h3>
+                <button id="closeEasterEgg" class="easter-egg-close">&times;</button>
+            </div>
+            <div class="easter-egg-body" id="easterEggBody">
+                <!-- Easter egg content will be dynamically inserted -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Cyber Hack Mini-Game Container -->
+    <div id="cyberHackGame" class="cyber-hack-game hidden">
+        <div class="game-header">
+            <h3>CYBER HACK</h3>
+            <button id="closeGame" class="game-close">&times;</button>
+        </div>
+        <div class="game-content">
+            <!-- Game will be initialized here -->
+        </div>
+    </div>
+
     <script src="lib/xlsx.min.js"></script>
+    <script src="sounds.js"></script>
+    <script src="cyber-effects.js"></script>
+    <script src="cyberhack.js"></script>
+    <script src="debugger.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

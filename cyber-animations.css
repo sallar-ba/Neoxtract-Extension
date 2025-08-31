@@ -1,0 +1,643 @@
+/**
+ * CYBEREXTRACTOR ANIMATIONS
+ * Collection of cyberpunk-themed animations for the extension UI
+ */
+
+/* Matrix Rain Effect */
+@keyframes matrix-fall {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(500%);
+    opacity: 0;
+  }
+}
+
+/* CRT Scan Effect */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* CRT Flicker Effect */
+@keyframes crt-flicker {
+  0% { opacity: 0.9; }
+  5% { opacity: 0.8; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.85; }
+  20% { opacity: 0.9; }
+  25% { opacity: 0.95; }
+  30% { opacity: 0.9; }
+  35% { opacity: 0.95; }
+  40% { opacity: 0.9; }
+  45% { opacity: 0.95; }
+  50% { opacity: 0.9; }
+  55% { opacity: 0.85; }
+  60% { opacity: 0.9; }
+  65% { opacity: 0.95; }
+  70% { opacity: 0.95; }
+  75% { opacity: 0.9; }
+  80% { opacity: 0.95; }
+  85% { opacity: 0.9; }
+  90% { opacity: 0.9; }
+  95% { opacity: 0.95; }
+  100% { opacity: 0.9; }
+}
+
+/* Neon Pulse Effect */
+@keyframes neon-pulse {
+  0% {
+    box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue);
+  }
+  50% {
+    box-shadow: 0 0 10px var(--neon-blue), 0 0 20px var(--neon-blue), 0 0 30px var(--neon-blue);
+  }
+  100% {
+    box-shadow: 0 0 5px var(--neon-blue), 0 0 10px var(--neon-blue);
+  }
+}
+
+/* Text Glitch Effect */
+@keyframes glitch {
+  0% {
+    text-shadow: 0.05em 0 0 rgba(0, 243, 255, 0.75),
+                -0.05em -0.025em 0 rgba(0, 255, 255, 0.75),
+                -0.025em 0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  14% {
+    text-shadow: 0.05em 0 0 rgba(0, 243, 255, 0.75),
+                -0.05em -0.025em 0 rgba(0, 255, 255, 0.75),
+                -0.025em 0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  15% {
+    text-shadow: -0.05em -0.025em 0 rgba(0, 243, 255, 0.75),
+                0.025em 0.025em 0 rgba(0, 255, 255, 0.75),
+                -0.05em -0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  49% {
+    text-shadow: -0.05em -0.025em 0 rgba(0, 243, 255, 0.75),
+                0.025em 0.025em 0 rgba(0, 255, 255, 0.75),
+                -0.05em -0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  50% {
+    text-shadow: 0.025em 0.05em 0 rgba(0, 243, 255, 0.75),
+                0.05em 0 0 rgba(0, 255, 255, 0.75),
+                0 -0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  99% {
+    text-shadow: 0.025em 0.05em 0 rgba(0, 243, 255, 0.75),
+                0.05em 0 0 rgba(0, 255, 255, 0.75),
+                0 -0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+  100% {
+    text-shadow: -0.025em 0 0 rgba(0, 243, 255, 0.75),
+                -0.025em -0.025em 0 rgba(0, 255, 255, 0.75),
+                -0.025em -0.05em 0 rgba(0, 255, 0, 0.75);
+  }
+}
+
+/* Button Pulse Effect */
+@keyframes button-pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7);
+  }
+  70% {
+    transform: scale(1.02);
+    box-shadow: 0 0 0 10px rgba(0, 243, 255, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(0, 243, 255, 0);
+  }
+}
+
+/* Loading Animation */
+@keyframes cyber-loading {
+  0% { 
+    transform: rotate(0deg); 
+    border-color: var(--neon-blue) transparent transparent transparent;
+  }
+  50% {
+    border-color: var(--neon-pink) transparent transparent transparent;
+  }
+  100% { 
+    transform: rotate(360deg); 
+    border-color: var(--neon-blue) transparent transparent transparent;
+  }
+}
+
+/* Notification Slide */
+@keyframes notification-slide {
+  0% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  10% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  90% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+/* Notification Progress */
+@keyframes notification-progress {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
+  }
+}
+
+/* Tab Highlighter Animation */
+@keyframes tab-highlight {
+  0% {
+    opacity: 0.7;
+    transform: scaleX(0.8);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+/* Stats Circle Animation */
+@keyframes stats-circle-pulse {
+  0% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0 rgba(0, 243, 255, 0.7);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba(0, 243, 255, 0);
+  }
+  100% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0 rgba(0, 243, 255, 0);
+  }
+}
+
+/* Search Underline Animation */
+@keyframes search-underline {
+  0% {
+    transform: scaleX(0);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+/* Checkbox Visual Animation */
+@keyframes checkbox-check {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Easter Egg Modal Animation */
+@keyframes modal-appear {
+  0% {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Terminal Input Cursor */
+@keyframes cursor-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Logo Glow Animation */
+@keyframes logo-glow {
+  0% {
+    opacity: 0.6;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.5),
+                0 0 20px rgba(0, 243, 255, 0.3),
+                0 0 30px rgba(0, 243, 255, 0.1);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.8),
+                0 0 30px rgba(0, 243, 255, 0.6),
+                0 0 45px rgba(0, 243, 255, 0.3);
+  }
+  100% {
+    opacity: 0.6;
+    box-shadow: 0 0 10px rgba(0, 243, 255, 0.5),
+                0 0 20px rgba(0, 243, 255, 0.3),
+                0 0 30px rgba(0, 243, 255, 0.1);
+  }
+}
+
+/* System Status Light Pulse */
+@keyframes status-light-pulse {
+  0% {
+    box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+    opacity: 0.8;
+  }
+  50% {
+    box-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00, 0 0 30px #00ff00;
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 5px #00ff00, 0 0 10px #00ff00;
+    opacity: 0.8;
+  }
+}
+
+/* Placeholder Icon Animation */
+@keyframes placeholder-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+}
+
+/* Code Target Hint Pulse for Cyber Hack Game */
+@keyframes hint-pulse {
+  0% {
+    background-color: transparent;
+    color: inherit;
+  }
+  50% {
+    background-color: rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+  }
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+/* CRT Style for Body */
+body.cyberpunk {
+  position: relative;
+  overflow: hidden;
+}
+
+.terminal-noise {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: url('data:image/png;base64,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');
+  opacity: 0.03;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.scanline {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 10px;
+  background: rgba(0, 243, 255, 0.1);
+  opacity: 0.5;
+  z-index: 1;
+  pointer-events: none;
+  animation: scanline 6s linear infinite;
+}
+
+.crt-flicker {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  opacity: 0.1;
+  z-index: 2;
+  pointer-events: none;
+  animation: crt-flicker 10s infinite;
+}
+
+/* Glitch effect for elements with can-glitch class */
+.can-glitch.glitching {
+  animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both;
+}
+
+/* Button pulse animation */
+.pulse {
+  animation: button-pulse 2s infinite;
+}
+
+/* Loading animation */
+.loading {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(0, 243, 255, 0.3);
+  border-top: 5px solid var(--neon-blue);
+  border-radius: 50%;
+  margin: 30px auto;
+  animation: cyber-loading 1.5s linear infinite;
+}
+
+/* Easter Egg Modal Animation */
+#easterEggModal.show {
+  display: block;
+}
+
+#easterEggModal .easter-egg-content {
+  animation: modal-appear 0.3s ease-out forwards;
+}
+
+/* CyberHack Game Styles */
+#cyberHackGame {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 500px;
+  background: rgba(0, 0, 0, 0.95);
+  border: 1px solid var(--neon-blue);
+  border-radius: 5px;
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+  z-index: 1000;
+  overflow: hidden;
+}
+
+#cyberHackGame.hidden {
+  display: none;
+}
+
+.game-header {
+  background: rgba(0, 0, 0, 0.8);
+  border-bottom: 1px solid var(--neon-blue);
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.game-header h3 {
+  margin: 0;
+  color: var(--neon-blue);
+  font-family: 'Orbitron', sans-serif;
+  text-shadow: 0 0 5px var(--neon-blue);
+}
+
+.game-close {
+  background: none;
+  border: none;
+  color: var(--neon-blue);
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.game-content {
+  padding: 15px;
+  color: #f0f0f0;
+  font-family: 'Share Tech Mono', monospace;
+}
+
+.game-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 15px;
+  padding: 5px;
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.game-stat {
+  font-size: 14px;
+}
+
+.game-display {
+  margin: 20px 0;
+}
+
+.target-code-container, .user-input-container {
+  text-align: center;
+  margin: 15px 0;
+}
+
+.target-label, .input-label {
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 5px;
+}
+
+.target-code {
+  font-size: 24px;
+  letter-spacing: 2px;
+  color: var(--neon-pink);
+  text-shadow: 0 0 5px var(--neon-pink);
+  padding: 10px;
+  border: 1px dashed var(--neon-pink);
+  display: inline-block;
+  min-width: 150px;
+}
+
+.code-matrix {
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(0, 243, 255, 0.3);
+  height: 100px;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.matrix-row {
+  overflow-wrap: break-word;
+}
+
+.code-char {
+  display: inline-block;
+  color: #aaa;
+}
+
+.code-target {
+  color: var(--neon-blue);
+  cursor: default;
+}
+
+.code-target.hint-pulse {
+  animation: hint-pulse 1s infinite;
+}
+
+.code-decoy {
+  color: #999;
+  cursor: default;
+}
+
+.code-input {
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid var(--neon-blue);
+  color: white;
+  padding: 8px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 16px;
+  letter-spacing: 2px;
+  width: 150px;
+  text-transform: uppercase;
+}
+
+.submit-code {
+  background: var(--neon-blue);
+  color: black;
+  border: none;
+  padding: 8px 12px;
+  font-family: 'Share Tech Mono', monospace;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.submit-code:hover {
+  background: var(--neon-pink);
+}
+
+.game-message {
+  margin-top: 20px;
+  padding: 10px;
+  border-left: 3px solid var(--neon-blue);
+  background: rgba(0, 243, 255, 0.05);
+  font-size: 14px;
+}
+
+.game-message.pulse {
+  animation: button-pulse 0.5s 1;
+}
+
+.message-error {
+  border-left-color: var(--neon-pink);
+  background: rgba(0, 243, 255, 0.05);
+}
+
+.message-success {
+  border-left-color: #00ff00;
+  background: rgba(0, 255, 0, 0.05);
+}
+
+.time-critical {
+  color: var(--neon-pink);
+  animation: glitch 0.3s infinite;
+}
+
+.game-over {
+  text-align: center;
+  padding: 20px;
+}
+
+.game-over h2 {
+  color: var(--neon-pink);
+  font-family: 'Orbitron', sans-serif;
+  margin-bottom: 20px;
+  text-shadow: 0 0 10px var(--neon-pink);
+}
+
+.final-score, .final-level {
+  margin: 10px 0;
+  font-size: 18px;
+}
+
+.restart-button {
+  margin-top: 20px;
+  background: var(--neon-blue);
+  color: black;
+  border: none;
+  padding: 10px 20px;
+  font-family: 'Share Tech Mono', monospace;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.restart-button:hover {
+  background: var(--neon-pink);
+}
+
+/* Theme Classes */
+body.retro {
+  --neon-blue: #39ff14;
+  --neon-pink: #ff6b35;
+  --bg-dark: #222222;
+  --bg-darker: #111111;
+}
+
+body.neon {
+  --neon-blue: #00fefe;
+  --neon-pink: #00bfff;
+  --bg-dark: #0a0a0a;
+  --bg-darker: #050505;
+}
+
+body.dark {
+  --neon-blue: #4d5bce;
+  --neon-pink: #915c83;
+  --bg-dark: #151515;
+  --bg-darker: #101010;
+}
+
+body.hacker {
+  --neon-blue: #00ff00;
+  --neon-pink: #88ff88;
+  --bg-dark: #001000;
+  --bg-darker: #000800;
+}
+
+body.konami-active {
+  animation: glitch 0.3s infinite;
+}
+
+body.master-hunter .neo-header {
+  background: linear-gradient(45deg, var(--neon-blue), var(--neon-pink));
+  animation: neon-pulse 2s infinite;
+}
+
+.master-effect {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at center, transparent 0%, rgba(0, 243, 255, 0.1) 100%);
+  pointer-events: none;
+  z-index: 999;
+  opacity: 0.5;
+  animation: neon-pulse 4s infinite;
+}

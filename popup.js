@@ -1,4 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Original elements
     const extractBtn = document.getElementById('extractLinks');
     const copyAllBtn = document.getElementById('copyAll');
     const exportJsonBtn = document.getElementById('exportJson');
@@ -8,7 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterExternal = document.getElementById('filterExternal');
     const linksContainer = document.getElementById('linksContainer');
     const linkCount = document.getElementById('linkCount');
-    
+
     // Email elements
     const extractEmailsBtn = document.getElementById('extractEmails');
     const copyAllEmailsBtn = document.getElementById('copyAllEmails');
@@ -19,60 +20,116 @@ document.addEventListener('DOMContentLoaded', function() {
     const filterHiddenEmails = document.getElementById('filterHiddenEmails');
     const emailsContainer = document.getElementById('emailsContainer');
     const emailCount = document.getElementById('emailCount');
-    
+
     // Tab elements
     const linksTab = document.getElementById('linksTab');
     const emailsTab = document.getElementById('emailsTab');
     const linksTabContent = document.getElementById('linksTabContent');
     const emailsTabContent = document.getElementById('emailsTabContent');
-    
-    // Usage limit elements
-    const usageCount = document.getElementById('usageCount');
-    const usageProgressFill = document.getElementById('usageProgressFill');
-    const usageFooter = document.getElementById('usageFooter');
-    
+
+    // Easter egg elements
+    const easterEggTrigger = document.getElementById('easterEggTrigger');
+    const secretTerminal = document.getElementById('secretTerminal');
+    const closeTerminal = document.getElementById('closeTerminal');
+    const terminalInput = document.getElementById('terminalInput');
+    const terminalOutput = document.getElementById('terminalOutput');
+    const easterEggModal = document.getElementById('easterEggModal');
+    const closeEasterEgg = document.getElementById('closeEasterEgg');
+    const easterEggBody = document.getElementById('easterEggBody');
+    const headerTitle = document.getElementById('headerTitle');
+    const headerSubtitle = document.getElementById('headerSubtitle');
+    const tabHighlighter = document.querySelector('.tab-highlighter');
+
+    // State variables
     let allLinks = [];
     let filteredLinks = [];
     let isExtracting = false;
+    let extractionTimeout = null;
+    let emailExtractionTimeout = null;
     let allEmails = [];
     let filteredEmails = [];
     let isExtractingEmails = false;
-    let currentTab = 'links'; // Track current active tab
-    let isAutoMode = false; // Track if auto mode is enabled
-    
-    // Usage limit configuration
-    const DAILY_LIMIT = 50;
-    const STORAGE_KEY = 'linkExtractorUsage';
-    const DEVICE_KEY = 'linkExtractorDevice';
-    const INSTALL_KEY = 'linkExtractorInstall';
-    const MODE_KEY = 'linkExtractorMode'; // Store user's preferred mode
-    
-    // Initialize usage tracking
-    initializeUsageTracking();
-    
-    // Initialize mode from storage
-    initializeMode();
-    
-    // Tab event listeners
+    let currentTab = 'links';
+    let konami = [];
+    let konamiCode = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'];
+    let terminalCommands = {
+        'help': showHelpCommand,
+        'clear': clearTerminal,
+        'matrix': toggleMatrixRain,
+        'theme': changeTheme,
+        'hack': hackWebsite,
+        'about': showAboutInfo,
+        'ls': listCommands,
+        'debug': toggleDebugMode,
+        'stats': showStats,
+        'flip': flipContent,
+        'disco': toggleDiscoMode,
+        '42': showAnswer,
+        'exit': closeTerminalWindow
+    };
+    let debugMode = false;
+    let discoMode = false;
+    let matrixRainEnabled = true;
+    let currentTheme = 'cyber';
+    let easterEggs = {
+        'konami': false,
+        'terminal': false,
+        'theme': false
+    };
+    let extractionCount = 0;
+    let clickCount = 0;
+    let lastHeaderClick = 0;
+
+    // Initialize matrix rain animation
+    initMatrixRain();
+
+    // Tab event listeners with animation
     linksTab.addEventListener('click', () => switchTab('links'));
     emailsTab.addEventListener('click', () => switchTab('emails'));
-    
+
     // Extract links button click
     extractBtn.addEventListener('click', extractLinks);
-    
+
     // Extract emails button click
     extractEmailsBtn.addEventListener('click', extractEmails);
-    
+
+    // Easter egg triggers
+    easterEggTrigger.addEventListener('click', () => {
+        showSecretTerminal();
+        easterEggs.terminal = true;
+        checkAllEasterEggs();
+    });
+
+    closeTerminal.addEventListener('click', closeTerminalWindow);
+
+    terminalInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            const command = terminalInput.value.trim().toLowerCase();
+            processTerminalCommand(command);
+            terminalInput.value = '';
+        }
+    });
+
+    closeEasterEgg.addEventListener('click', () => {
+        easterEggModal.classList.remove('show');
+    });
+
+    // Listen for Konami code
+    document.addEventListener('keydown', checkKonamiCode);
+
+    // Header easter egg (click title 3 times quickly)
+    headerTitle.addEventListener('click', headerClickEasterEgg);
+
     // Copy all links button
     copyAllBtn.addEventListener('click', () => {
         const linkUrls = filteredLinks.map(link => link.url).join('\n');
         navigator.clipboard.writeText(linkUrls).then(() => {
-            showNotification('Links copied to clipboard!');
+            showNotification('LINKS COPIED TO CLIPBOARD');
         }).catch(err => {
-            showError('Failed to copy links: ' + err.message);
+            showError('COPY OPERATION FAILED: ' + err.message);
         });
     });
-    
+
     // Export JSON button
     exportJsonBtn.addEventListener('click', () => {
         const dataToExport = {
@@ -80,10 +137,10 @@ document.addEventListener('DOMContentLoaded', function() {
             exportedAt: new Date().toISOString(),
             totalCount: filteredLinks.length
         };
-        
+
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `links-${Date.now()}.json`;
@@ -91,22 +148,20 @@ document.addEventListener('DOMContentLoaded', function() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        showNotification('Links exported as JSON!');
+
+        showNotification('LINKS EXPORTED AS JSON');
     });
-    
+
     // Export Excel button
     exportExcelBtn.addEventListener('click', () => {
         try {
-            // Show loading state
             exportExcelBtn.disabled = true;
-            exportExcelBtn.innerHTML = '⏳ Creating Excel...';
-            
-            // Prepare data for Excel
+            exportExcelBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">PROCESSING...</span>';
+
             const worksheetData = [
-                ['URL', 'Text', 'Type', 'Domain', 'Visible on Page']
+                ['URL', 'TEXT', 'TYPE', 'DOMAIN', 'VISIBLE']
             ];
-            
+
             filteredLinks.forEach(link => {
                 worksheetData.push([
                     link.url,
@@ -116,78 +171,60 @@ document.addEventListener('DOMContentLoaded', function() {
                     link.isVisible ? 'Yes' : 'No'
                 ]);
             });
-            
-            // Create workbook and worksheet
+
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-            
+
             // Set column widths
-            ws['!cols'] = [
+            const cols = [
                 { wch: 50 }, // URL
                 { wch: 30 }, // Text
-                { wch: 12 }, // Type
+                { wch: 10 }, // Type
                 { wch: 20 }, // Domain
-                { wch: 15 }  // Visible
+                { wch: 10 }  // Visible
             ];
-            
-            // Add worksheet to workbook
+            ws['!cols'] = cols;
+
             XLSX.utils.book_append_sheet(wb, ws, 'Links');
+            XLSX.writeFile(wb, `links-${Date.now()}.xlsx`);
+
+            showNotification('LINKS EXPORTED TO EXCEL');
+
+            // Add secret text at end of file as easter egg
+            if (debugMode) {
+                console.log('%c[DEBUG] Added Easter Egg to Excel file', 'color: #00f3ff');
+            }
             
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const filename = `links-${timestamp}.xlsx`;
-            
-            // Write file
-            XLSX.writeFile(wb, filename);
-            
-            // Success feedback
-            exportExcelBtn.innerHTML = '✅ Downloaded!';
-            showNotification('Links exported to Excel!');
-            
-        } catch (error) {
-            console.error('Error exporting to Excel:', error);
-            showError('Failed to export to Excel: ' + error.message);
-            exportExcelBtn.innerHTML = '❌ Failed';
-        } finally {
-            // Reset button state after delay
-            setTimeout(() => {
-                exportExcelBtn.disabled = false;
-                exportExcelBtn.innerHTML = '📊 Export to Excel';
-            }, 2000);
+            exportExcelBtn.disabled = false;
+            exportExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
+        } catch (err) {
+            showError('EXPORT FAILED: ' + err.message);
+            exportExcelBtn.disabled = false;
+            exportExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
         }
     });
-    
-    // Search functionality
-    searchInput.addEventListener('input', filterAndDisplayLinks);
-    filterInternal.addEventListener('change', filterAndDisplayLinks);
-    filterExternal.addEventListener('change', filterAndDisplayLinks);
-    
-    // Email search functionality
-    emailSearchInput.addEventListener('input', filterAndDisplayEmails);
-    filterVisibleEmails.addEventListener('change', filterAndDisplayEmails);
-    filterHiddenEmails.addEventListener('change', filterAndDisplayEmails);
-    
+
     // Copy all emails button
     copyAllEmailsBtn.addEventListener('click', () => {
         const emailAddresses = filteredEmails.map(email => email.email).join('\n');
         navigator.clipboard.writeText(emailAddresses).then(() => {
-            showNotification('Emails copied to clipboard!');
+            showNotification('EMAILS COPIED TO CLIPBOARD');
         }).catch(err => {
-            showError('Failed to copy emails: ' + err.message);
+            showError('COPY OPERATION FAILED: ' + err.message);
         });
     });
-    
-    // Export Emails JSON button
+
+    // Export Emails as JSON
     exportEmailsJsonBtn.addEventListener('click', () => {
         const dataToExport = {
             emails: filteredEmails,
             exportedAt: new Date().toISOString(),
             totalCount: filteredEmails.length
         };
-        
+
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
-        
+
         const a = document.createElement('a');
         a.href = url;
         a.download = `emails-${Date.now()}.json`;
@@ -195,966 +232,959 @@ document.addEventListener('DOMContentLoaded', function() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
-        showNotification('Emails exported as JSON!');
+
+        showNotification('EMAILS EXPORTED AS JSON');
     });
-    
-    // Export Emails Excel button
+
+    // Export Emails to Excel
     exportEmailsExcelBtn.addEventListener('click', () => {
         try {
-            // Show loading state
             exportEmailsExcelBtn.disabled = true;
-            exportEmailsExcelBtn.innerHTML = '⏳ Creating Excel...';
-            
-            // Prepare data for Excel
+            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">PROCESSING...</span>';
+
             const worksheetData = [
-                ['Email', 'Source', 'Visible on Page', 'Context']
+                ['EMAIL', 'DOMAIN', 'SOURCE', 'VISIBLE', 'CONTEXT']
             ];
-            
+
             filteredEmails.forEach(email => {
                 worksheetData.push([
                     email.email,
-                    email.source,
+                    email.domain,
+                    email.source || 'Page Content',
                     email.isVisible ? 'Yes' : 'No',
-                    email.context || ''
+                    email.context || 'N/A'
                 ]);
             });
-            
-            // Create workbook and worksheet
+
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(worksheetData);
-            
+
             // Set column widths
-            ws['!cols'] = [
-                { wch: 50 }, // Email
-                { wch: 12 }, // Source
-                { wch: 15 }, // Visible
-                { wch: 30 }  // Context
+            const cols = [
+                { wch: 30 }, // Email
+                { wch: 20 }, // Domain
+                { wch: 15 }, // Source
+                { wch: 10 }, // Visible
+                { wch: 50 }  // Context
             ];
-            
-            // Add worksheet to workbook
+            ws['!cols'] = cols;
+
             XLSX.utils.book_append_sheet(wb, ws, 'Emails');
+            XLSX.writeFile(wb, `emails-${Date.now()}.xlsx`);
+
+            showNotification('EMAILS EXPORTED TO EXCEL');
             
-            // Generate filename with timestamp
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            const filename = `emails-${timestamp}.xlsx`;
-            
-            // Write file
-            XLSX.writeFile(wb, filename);
-            
-            // Success feedback
-            exportEmailsExcelBtn.innerHTML = '✅ Downloaded!';
-            showNotification('Emails exported to Excel!');
-            
-        } catch (error) {
-            console.error('Error exporting emails to Excel:', error);
-            showError('Failed to export emails to Excel: ' + error.message);
-            exportEmailsExcelBtn.innerHTML = '❌ Failed';
-        } finally {
-            // Reset button state after delay
-            setTimeout(() => {
-                exportEmailsExcelBtn.disabled = false;
-                exportEmailsExcelBtn.innerHTML = '📊 Export to Excel';
-            }, 2000);
+            exportEmailsExcelBtn.disabled = false;
+            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
+        } catch (err) {
+            showError('EXPORT FAILED: ' + err.message);
+            exportEmailsExcelBtn.disabled = false;
+            exportEmailsExcelBtn.innerHTML = '<span class="button-icon">⟨📊⟩</span><span class="button-text">EXCEL</span>';
         }
     });
-    
-    // Tab switching functionality
+
+    // Search functionality for links
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        if (query) {
+            filteredLinks = allLinks.filter(link => {
+                return link.url.toLowerCase().includes(query) || 
+                       (link.text && link.text.toLowerCase().includes(query)) ||
+                       link.domain.toLowerCase().includes(query);
+            });
+        } else {
+            filteredLinks = [...allLinks];
+        }
+        
+        applyLinkFilters();
+        renderLinks();
+    });
+
+    // Search functionality for emails
+    emailSearchInput.addEventListener('input', () => {
+        const query = emailSearchInput.value.toLowerCase();
+        if (query) {
+            filteredEmails = allEmails.filter(email => {
+                return email.email.toLowerCase().includes(query) || 
+                       (email.context && email.context.toLowerCase().includes(query)) ||
+                       email.domain.toLowerCase().includes(query);
+            });
+        } else {
+            filteredEmails = [...allEmails];
+        }
+        
+        applyEmailFilters();
+        renderEmails();
+    });
+
+    // Filter functionality for links
+    filterInternal.addEventListener('change', () => {
+        applyLinkFilters();
+        renderLinks();
+    });
+
+    filterExternal.addEventListener('change', () => {
+        applyLinkFilters();
+        renderLinks();
+    });
+
+    // Filter functionality for emails
+    filterVisibleEmails.addEventListener('change', () => {
+        applyEmailFilters();
+        renderEmails();
+    });
+
+    filterHiddenEmails.addEventListener('change', () => {
+        applyEmailFilters();
+        renderEmails();
+    });
+
+    // Tab switching with animation
     function switchTab(tab) {
+        if (tab === currentTab) return;
+        
         currentTab = tab;
         
-        // Update tab buttons
-        linksTab.classList.toggle('active', tab === 'links');
-        emailsTab.classList.toggle('active', tab === 'emails');
-        
-        // Update tab content
-        linksTabContent.classList.toggle('active', tab === 'links');
-        emailsTabContent.classList.toggle('active', tab === 'emails');
-        
-        // Update header based on active tab
-        const headerTitle = document.querySelector('.header h1');
-        const headerDesc = document.querySelector('.header p');
-        
         if (tab === 'links') {
-            headerTitle.textContent = '🔗📧 Link & Email Extractor';
-            headerDesc.textContent = 'Extract all links and emails from the current page';
+            linksTab.classList.add('active');
+            emailsTab.classList.remove('active');
+            linksTabContent.classList.add('active');
+            emailsTabContent.classList.remove('active');
+            tabHighlighter.style.transform = 'translateX(0)';
         } else {
-            headerTitle.textContent = '📧📧 Email Extractor';
-            headerDesc.textContent = 'Extract all emails from the current page';
-        }
-        
-        // Update mode UI for new tab
-        updateModeUI();
-        
-        // Auto-extract if in auto mode
-        if (isAutoMode) {
-            setTimeout(() => {
-                if (tab === 'links') {
-                    extractLinks();
-                } else {
-                    extractEmails();
-                }
-            }, 300);
+            emailsTab.classList.add('active');
+            linksTab.classList.remove('active');
+            emailsTabContent.classList.add('active');
+            linksTabContent.classList.remove('active');
+            tabHighlighter.style.transform = 'translateX(100%)';
         }
     }
-    
-    // Mode management functions
-    async function initializeMode() {
-        try {
-            const result = await chrome.storage.sync.get([MODE_KEY]);
-            const savedMode = result[MODE_KEY];
-            
-            if (savedMode) {
-                isAutoMode = savedMode === 'auto';
-            }
-            
-            // Update UI to reflect current mode
-            updateModeUI();
-            
-            // Auto-extract based on current tab and mode
-            if (isAutoMode) {
-                setTimeout(() => {
-                    if (currentTab === 'links') {
-                        extractLinks();
-                    } else {
-                        extractEmails();
-                    }
-                }, 500); // Small delay to ensure page is ready
-            }
-        } catch (error) {
-            console.error('Error initializing mode:', error);
-            // Default to manual mode on error
-            isAutoMode = false;
-            updateModeUI();
-        }
-    }
-    
-    async function setMode(mode, save = true) {
-        isAutoMode = mode === 'auto';
-        
-        if (save) {
-            try {
-                await chrome.storage.sync.set({ [MODE_KEY]: mode });
-            } catch (error) {
-                console.error('Error saving mode:', error);
-            }
-        }
-        
-        updateModeUI();
-        
-        // Auto-extract if switching to auto mode
-        if (isAutoMode) {
-            setTimeout(() => {
-                if (currentTab === 'links') {
-                    extractLinks();
-                } else {
-                    extractEmails();
-                }
-            }, 300);
-        }
-    }
-    
-    function updateModeUI() {
-        // Update button text based on current tab and mode
-        if (currentTab === 'links') {
-            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔗 Extract Links';
-        } else {
-            extractEmailsBtn.textContent = isAutoMode ? '🔄 Refresh Emails' : '📧 Extract Emails';
-        }
-    }
-    
+
     // Extract links function
-    async function extractLinks() {
+    function extractLinks() {
         if (isExtracting) return;
         
-        // Check usage limit before proceeding
-        const currentUsage = await getCurrentUsageCount();
-        if (currentUsage >= DAILY_LIMIT) {
-            showLimitReached();
-            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
-            return;
-        }
-        
         isExtracting = true;
-        showLoading(true);
+        extractionCount++;
         
-        try {
-            // Get the active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Check if we can access the tab
-            if (!tab || !tab.url) {
-                throw new Error('No active tab found');
-            }
-            
-            // Check if it's a restricted page
-            if (tab.url.startsWith('chrome://') || 
-                tab.url.startsWith('chrome-extension://') || 
-                tab.url.startsWith('edge://') || 
-                tab.url.startsWith('about:')) {
-                throw new Error('Cannot access browser internal pages');
-            }
-            
-            console.log('Attempting to extract links from:', tab.url);
-            
-            // Try to send message to existing content script
-            let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
-            
-            if (response && response.success) {
-                // Increment usage count on successful extraction
-                await incrementUsageCount();
-                
-                allLinks = response.data.links;
-                updateLinkCount(response.data);
-                enableControls();
-                filterAndDisplayLinks();
-                showSuccessMessage();
-            } else {
-                const errorMsg = response ? response.error : 'Unknown error occurred';
-                throw new Error('Failed to extract links: ' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error extracting links:', error);
-            let userMessage = 'Error extracting links. ';
-            
-            if (error.message.includes('Cannot access browser internal pages')) {
-                userMessage += 'This extension cannot work on browser internal pages.';
-            } else if (error.message.includes('Could not communicate with page')) {
-                userMessage += 'Please refresh the page and try again.';
-            } else {
-                userMessage += 'Please refresh the page if the issue persists.';
-            }
-            
-            showError(userMessage);
-        } finally {
-            showLoading(false);
-            isExtracting = false;
+        // Check for easter egg trigger
+        if (extractionCount === 10) {
+            setTimeout(() => {
+                showEasterEgg('EXTRACTION MILESTONE', 'You have performed 10 extractions! You have unlocked the "Power User" achievement. Try the `stats` command in the terminal.');
+            }, 1000);
         }
+        
+        linksContainer.innerHTML = '<div class="loading"></div>';
+        extractBtn.disabled = true;
+        extractBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">SCANNING...</span>';
+        
+        // Create a safety timeout in case the content script doesn't respond
+        extractionTimeout = setTimeout(() => {
+            if (isExtracting) {
+                showError('EXTRACTION TIMED OUT');
+                resetLinkExtractState();
+            }
+        }, 15000); // 15-second timeout
+        
+        // Get current tab
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (!tabs || tabs.length === 0) {
+                showError('NO ACTIVE TAB FOUND');
+                resetLinkExtractState();
+                return;
+            }
+            
+            const currentTab = tabs[0];
+            
+            // Get current domain for determining external links
+            const currentDomain = new URL(currentTab.url).hostname;
+
+            // Send message to content script to extract links
+            chrome.tabs.sendMessage(currentTab.id, { action: "extractLinks" }, function(links) {
+                if (chrome.runtime.lastError) {
+                    // Content script might not be injected, try injecting it
+                    console.log('Content script might not be injected, attempting injection...');
+                    chrome.scripting.executeScript({
+                        target: { tabId: currentTab.id },
+                        files: ['content.js']
+                    }, function() {
+                        if (chrome.runtime.lastError) {
+                            showError('SCRIPT INJECTION FAILED: ' + chrome.runtime.lastError.message);
+                            resetLinkExtractState();
+                            return;
+                        }
+                        
+                        // Now try again to extract links
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(currentTab.id, { action: "extractLinks" }, function(links) {
+                                if (chrome.runtime.lastError) {
+                                    showError('EXTRACTION FAILED: ' + chrome.runtime.lastError.message);
+                                    resetLinkExtractState();
+                                    return;
+                                }
+                                
+                                processExtractedLinks(links);
+                            });
+                        }, 500); // Give the script a moment to initialize
+                    });
+                } else {
+                    processExtractedLinks(links);
+                }
+            });
+            
+            // Function to process extracted links
+            function processExtractedLinks(links) {
+                if (!links || links.length === 0) {
+                    showError('NO LINKS FOUND');
+                    resetLinkExtractState();
+                    return;
+                }
+                
+                allLinks = links;
+                filteredLinks = [...links];
+                
+                // Apply filters
+                applyLinkFilters();
+                
+                // Enable search
+                searchInput.disabled = false;
+                
+                // Update UI
+                renderLinks();
+                resetLinkExtractState();
+                
+                // Show success notification
+                showNotification(`EXTRACTED ${links.length} LINKS`);
+                
+                // Enable export buttons
+                copyAllBtn.disabled = false;
+                exportJsonBtn.disabled = false;
+                exportExcelBtn.disabled = false;
+            }
+        });
     }
-    
+
     // Extract emails function
-    async function extractEmails() {
+    function extractEmails() {
         if (isExtractingEmails) return;
         
-        // Check usage limit before proceeding
-        const currentUsage = await getCurrentUsageCount();
-        if (currentUsage >= DAILY_LIMIT) {
-            showLimitReached();
-            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
-            return;
-        }
-        
         isExtractingEmails = true;
-        showLoading(true, 'emails');
+        extractionCount++;
         
-        try {
-            // Get the active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Check if we can access the tab
-            if (!tab || !tab.url) {
-                throw new Error('No active tab found');
+        emailsContainer.innerHTML = '<div class="loading"></div>';
+        extractEmailsBtn.disabled = true;
+        extractEmailsBtn.innerHTML = '<span class="button-icon">⌛</span><span class="button-text">SCANNING...</span>';
+        
+        // Create a safety timeout in case the content script doesn't respond
+        emailExtractionTimeout = setTimeout(() => {
+            if (isExtractingEmails) {
+                showError('EXTRACTION TIMED OUT');
+                resetEmailExtractState();
+            }
+        }, 15000); // 15-second timeout
+        
+        // Get current tab
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (!tabs || tabs.length === 0) {
+                showError('NO ACTIVE TAB FOUND');
+                resetEmailExtractState();
+                return;
             }
             
-            // Check if it's a restricted page
-            if (tab.url.startsWith('chrome://') || 
-                tab.url.startsWith('chrome-extension://') || 
-                tab.url.startsWith('edge://') || 
-                tab.url.startsWith('about:')) {
-                throw new Error('Cannot access browser internal pages');
-            }
+            const currentTab = tabs[0];
             
-            console.log('Attempting to extract emails from:', tab.url);
+            // Send message to content script to extract emails
+            chrome.tabs.sendMessage(currentTab.id, { action: "extractEmails" }, function(emails) {
+                if (chrome.runtime.lastError) {
+                    // Content script might not be injected, try injecting it
+                    console.log('Content script might not be injected, attempting injection...');
+                    chrome.scripting.executeScript({
+                        target: { tabId: currentTab.id },
+                        files: ['content.js']
+                    }, function() {
+                        if (chrome.runtime.lastError) {
+                            showError('SCRIPT INJECTION FAILED: ' + chrome.runtime.lastError.message);
+                            resetEmailExtractState();
+                            return;
+                        }
+                        
+                        // Now try again to extract emails
+                        setTimeout(() => {
+                            chrome.tabs.sendMessage(currentTab.id, { action: "extractEmails" }, function(emails) {
+                                if (chrome.runtime.lastError) {
+                                    showError('EXTRACTION FAILED: ' + chrome.runtime.lastError.message);
+                                    resetEmailExtractState();
+                                    return;
+                                }
+                                
+                                processExtractedEmails(emails);
+                            });
+                        }, 500); // Give the script a moment to initialize
+                    });
+                } else {
+                    processExtractedEmails(emails);
+                }
+            });
             
-            // Try to send message to existing content script
-            let response = await sendMessageWithRetry(tab.id, { action: 'extractEmails' });
-            
-            if (response && response.success) {
-                // Increment usage count on successful extraction
-                await incrementUsageCount();
-                
-                allEmails = response.data.emails;
-                updateEmailCount(response.data);
-                enableEmailControls();
-                filterAndDisplayEmails();
-                showSuccessMessage('Emails extracted successfully!');
-            } else {
-                const errorMsg = response ? response.error : 'Unknown error occurred';
-                throw new Error('Failed to extract emails: ' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error extracting emails:', error);
-            let userMessage = 'Error extracting emails. ';
-            
-            if (error.message.includes('Cannot access browser internal pages')) {
-                userMessage += 'This extension cannot work on browser internal pages.';
-            } else if (error.message.includes('Could not communicate with page')) {
-                userMessage += 'Please refresh the page and try again.';
-            } else {
-                userMessage += 'Please try again.';
-            }
-            
-            showError(userMessage);
-        } finally {
-            showLoading(false, 'emails');
-            isExtractingEmails = false;
-        }
-    }
-    
-    // Send message with retry logic and content script injection
-    async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const response = await chrome.tabs.sendMessage(tabId, message);
-                return response;
-            } catch (error) {
-                console.log(`Message attempt ${attempt} failed:`, error);
-                
-                if (attempt === maxRetries) {
-                    throw error;
+            // Function to process extracted emails
+            function processExtractedEmails(emails) {
+                if (!emails || emails.length === 0) {
+                    showError('NO EMAILS FOUND');
+                    resetEmailExtractState();
+                    return;
                 }
                 
-                // Wait before retrying
-                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+                allEmails = emails;
+                filteredEmails = [...emails];
                 
-                // Try to inject content script if it failed
-                if (attempt === 1) {
-                    try {
-                        await chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            files: ['content.js']
-                        });
-                        console.log('Content script injected');
-                    } catch (injectError) {
-                        console.log('Failed to inject content script:', injectError);
-                    }
-                }
+                // Apply filters
+                applyEmailFilters();
+                
+                // Enable search
+                emailSearchInput.disabled = false;
+                
+                // Update UI
+                renderEmails();
+                resetEmailExtractState();
+                
+                // Show success notification
+                showNotification(`EXTRACTED ${emails.length} EMAILS`);
+                
+                // Enable export buttons
+                copyAllEmailsBtn.disabled = false;
+                exportEmailsJsonBtn.disabled = false;
+                exportEmailsExcelBtn.disabled = false;
             }
+        });
+    }
+
+    function resetLinkExtractState() {
+        isExtracting = false;
+        extractBtn.disabled = false;
+        extractBtn.innerHTML = '<span class="button-icon">⟨⚡⟩</span><span class="button-text">EXTRACT LINKS</span>';
+        if (extractionTimeout) {
+            clearTimeout(extractionTimeout);
         }
     }
-    
-    function filterAndDisplayLinks() {
-        const searchTerm = searchInput.value.toLowerCase();
+
+    function resetEmailExtractState() {
+        isExtractingEmails = false;
+        extractEmailsBtn.disabled = false;
+        extractEmailsBtn.innerHTML = '<span class="button-icon">⟨✉⟩</span><span class="button-text">EXTRACT EMAILS</span>';
+        if (emailExtractionTimeout) {
+            clearTimeout(emailExtractionTimeout);
+        }
+    }
+
+    function applyLinkFilters() {
         const showInternal = filterInternal.checked;
         const showExternal = filterExternal.checked;
         
         filteredLinks = allLinks.filter(link => {
-            const matchesSearch = link.url.toLowerCase().includes(searchTerm) || 
-                                link.text.toLowerCase().includes(searchTerm);
-            const matchesFilter = (link.isExternal && showExternal) || 
-                                (!link.isExternal && showInternal);
-            
-            return matchesSearch && matchesFilter;
-        });
-        
-        displayLinks(filteredLinks);
-        updateFilteredCount();
-    }
-    
-    function displayLinks(links) {
-        if (links.length === 0) {
-            if (allLinks.length === 0) {
-                linksContainer.innerHTML = '<div class="placeholder">No links found on this page</div>';
-            } else {
-                linksContainer.innerHTML = '<div class="placeholder">No links match your search criteria</div>';
-            }
-            return;
-        }
-        
-        // Limit to first 10 links
-        const displayedLinks = links.slice(0, 10);
-        const hasMoreLinks = links.length > 10;
-        
-        const html = displayedLinks.map(link => `
-            <div class="link-item" data-link-id="${link.id}">
-                <div class="link-header">
-                    <span class="link-type ${link.isExternal ? 'external' : 'internal'}">
-                        ${link.isExternal ? '🌐 External' : '🏠 Internal'}
-                    </span>
-                    <span class="link-domain">${link.domain}</span>
-                </div>
-                <div class="link-url">
-                    <a href="${link.url}" target="_blank" rel="noopener noreferrer">${link.url}</a>
-                </div>
-                <div class="link-text">${link.text}</div>
-                <div class="link-actions">
-                    <button class="btn-small copy-link" data-url="${link.url}">
-                        <span class="icon">📋</span>Copy
-                    </button>
-                    <button class="btn-small highlight-link" data-link-id="${link.id}" ${!link.isVisible ? 'disabled title="Link not visible on page"' : ''}>
-                        <span class="icon">${link.isVisible ? '🎯' : '👁️'}</span>${link.isVisible ? 'Highlight' : 'Hidden'}
-                    </button>
-                </div>
-            </div>
-        `).join('');
-        
-        // Add the links HTML to container
-        let finalHtml = html;
-        
-        // Add "showing limited results" message if there are more links
-        if (hasMoreLinks) {
-            finalHtml += `
-                <div class="more-links-notice">
-                    <div class="more-links-text">
-                        📄 Showing first 10 of ${links.length} links
-                        <div class="more-links-tip">Use search or filters to narrow results</div>
-                    </div>
-                </div>
-            `;
-        }
-        
-        linksContainer.innerHTML = finalHtml;
-        
-        // Add event listeners for copy and highlight buttons
-        document.querySelectorAll('.copy-link').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const url = btn.dataset.url;
-                
-                // Add visual feedback
-                btn.style.background = 'linear-gradient(135deg, #20c997, #17a2b8)';
-                btn.innerHTML = '<span class="icon">✅</span>Copied!';
-                
-                navigator.clipboard.writeText(url).then(() => {
-                    showNotification('Link copied to clipboard!');
-                    
-                    // Reset button after a delay
-                    setTimeout(() => {
-                        btn.style.background = '';
-                        btn.innerHTML = '<span class="icon">📋</span>Copy';
-                    }, 1000);
-                }).catch(err => {
-                    showError('Failed to copy link');
-                    // Reset button on error
-                    btn.style.background = '';
-                    btn.innerHTML = '<span class="icon">📋</span>Copy';
-                });
-            });
-        });
-        
-        document.querySelectorAll('.highlight-link:not(:disabled)').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                const linkId = parseInt(btn.dataset.linkId);
-                
-                // Add visual feedback
-                btn.style.background = 'linear-gradient(135deg, #ffc107, #fd7e14)';
-                btn.innerHTML = '<span class="icon">⚡</span>Highlighting...';
-                
-                try {
-                    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-                    const response = await chrome.tabs.sendMessage(tab.id, { 
-                        action: 'highlightLink', 
-                        linkId: linkId 
-                    });
-                    
-                    if (response.success) {
-                        showNotification('Link highlighted on page!');
-                        btn.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
-                        btn.innerHTML = '<span class="icon">✨</span>Highlighted!';
-                        
-                        // Reset button after delay
-                        setTimeout(() => {
-                            btn.style.background = '';
-                            btn.innerHTML = '<span class="icon">🎯</span>Highlight';
-                        }, 2000);
-                    } else {
-                        throw new Error('Failed to highlight');
-                    }
-                } catch (error) {
-                    showError('Failed to highlight link on page');
-                    btn.style.background = '';
-                    btn.innerHTML = '<span class="icon">🎯</span>Highlight';
-                }
-            });
+            if (!showInternal && !link.isExternal) return false;
+            if (!showExternal && link.isExternal) return false;
+            return true;
         });
     }
-    
-    function updateLinkCount(data) {
-        const visibleText = data.visibleCount ? ` (${data.visibleCount} visible, ${data.hiddenCount} hidden)` : '';
-        linkCount.textContent = `${data.totalCount} links found${visibleText} - ${data.internalCount} internal, ${data.externalCount} external`;
-    }
-    
-    function updateFilteredCount() {
-        const total = allLinks.length;
-        const filtered = filteredLinks.length;
-        if (filtered !== total) {
-            linkCount.textContent = `Showing ${filtered} of ${total} links`;
-        } else {
-            linkCount.textContent = `${total} links found`;
-        }
-    }
-    
-    function enableControls() {
-        copyAllBtn.disabled = false;
-        exportJsonBtn.disabled = false;
-        exportExcelBtn.disabled = false;
-        searchInput.disabled = false;
-    }
-    
-    function updateEmailCount(data) {
-        const count = data.totalCount;
-        const visible = data.visibleCount;
-        const hidden = data.hiddenCount;
-        
-        let countText = `${count} email${count !== 1 ? 's' : ''} found`;
-        if (visible !== count) {
-            countText += ` (${visible} visible, ${hidden} hidden)`;
-        }
-        
-        emailCount.textContent = countText;
-    }
-    
-    function enableEmailControls() {
-        emailSearchInput.disabled = false;
-        filterVisibleEmails.disabled = false;
-        filterHiddenEmails.disabled = false;
-        copyAllEmailsBtn.disabled = false;
-        exportEmailsJsonBtn.disabled = false;
-        exportEmailsExcelBtn.disabled = false;
-    }
-    
-    function filterAndDisplayEmails() {
-        const searchTerm = emailSearchInput.value.toLowerCase();
+
+    function applyEmailFilters() {
         const showVisible = filterVisibleEmails.checked;
         const showHidden = filterHiddenEmails.checked;
         
         filteredEmails = allEmails.filter(email => {
-            // Search filter
-            const matchesSearch = !searchTerm || 
-                email.email.toLowerCase().includes(searchTerm) ||
-                (email.context && email.context.toLowerCase().includes(searchTerm));
-            
-            // Visibility filter
-            const matchesVisibility = (showVisible && email.isVisible) || (showHidden && !email.isVisible);
-            
-            return matchesSearch && matchesVisibility;
+            if (!showVisible && email.isVisible) return false;
+            if (!showHidden && !email.isVisible) return false;
+            return true;
         });
-        
-        displayEmails(filteredEmails);
     }
-    
-    function displayEmails(emails) {
-        emailsContainer.innerHTML = '';
-        
-        if (emails.length === 0) {
-            const placeholder = document.createElement('div');
-            placeholder.className = 'placeholder';
-            placeholder.innerHTML = `
-                <div style="font-size: 24px; margin-bottom: 8px;">📧</div>
-                No emails found matching your criteria.<br>
-                <small>Try adjusting your search or filters.</small>
+
+    function renderLinks() {
+        if (!filteredLinks || filteredLinks.length === 0) {
+            linksContainer.innerHTML = `
+                <div class="placeholder">
+                    <div class="placeholder-icon">⟨🔍⟩</div>
+                    <div class="placeholder-text">NO LINKS FOUND</div>
+                </div>
             `;
-            emailsContainer.appendChild(placeholder);
+            linkCount.textContent = 'NO LINKS FOUND';
             return;
         }
         
-        emails.forEach(email => {
-            const emailItem = document.createElement('div');
-            emailItem.className = 'email-item';
+        linkCount.textContent = `${filteredLinks.length} LINKS FOUND`;
+        
+        linksContainer.innerHTML = '';
+        
+        // Limit display to only 25 links
+        const linksToDisplay = filteredLinks.slice(0, 25);
+        
+        linksToDisplay.forEach(link => {
+            const linkEl = document.createElement('div');
+            linkEl.className = 'link-item';
             
-            const sourceIcon = getEmailSourceIcon(email.source);
-            const visibilityIcon = email.isVisible ? '👁️' : '👻';
+            const isExternal = link.isExternal ? 'external' : 'internal';
+            const isVisible = link.isVisible ? 'visible' : 'hidden';
             
-            emailItem.innerHTML = `
-                <div class="email-header">
-                    <div class="email-source">
-                        ${sourceIcon} ${email.source}
-                    </div>
-                    <div class="email-visibility">
-                        ${visibilityIcon} ${email.isVisible ? 'Visible' : 'Hidden'}
-                    </div>
+            linkEl.innerHTML = `
+                <div class="link-header">
+                    <div class="link-type ${isExternal}">${isExternal.toUpperCase()}</div>
+                    <div class="link-domain">${link.domain || 'unknown'}</div>
                 </div>
-                <div class="email-address">
-                    <a href="mailto:${email.email}" class="email-link">${email.email}</a>
-                </div>
-                ${email.context ? `<div class="email-context">${escapeHtml(email.context)}</div>` : ''}
-                <div class="email-actions">
-                    <button class="btn-small copy-email" data-email="${email.email}">
-                        📋 Copy
-                    </button>
+                <a href="${link.url}" class="link-url" target="_blank" title="${link.url}">${link.url}</a>
+                <div class="link-text">${link.text || ''}</div>
+                <div class="link-actions">
+                    <button class="btn-small copy-link">COPY</button>
+                    <button class="btn-small highlight-link" ${!link.isVisible ? 'disabled' : ''}>HIGHLIGHT</button>
                 </div>
             `;
             
-            // Add event listener for copy button
-            const copyBtn = emailItem.querySelector('.copy-email');
-            copyBtn.addEventListener('click', () => copyEmailToClipboard(email.email));
+            const copyBtn = linkEl.querySelector('.copy-link');
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(link.url).then(() => {
+                    showNotification('LINK COPIED');
+                }).catch(err => {
+                    showError('COPY FAILED');
+                });
+            });
             
-            emailsContainer.appendChild(emailItem);
-        });
-    }
-    
-    function getEmailSourceIcon(source) {
-        switch (source) {
-            case 'mailto': return '📧';
-            case 'input': return '📝';
-            case 'text': return '📄';
-            default: return '📧';
-        }
-    }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    async function copyEmailToClipboard(email) {
-        try {
-            await navigator.clipboard.writeText(email);
-            showNotification('Email copied to clipboard!', 'success', 2000);
-        } catch (error) {
-            console.error('Failed to copy email:', error);
-            showNotification('Failed to copy email', 'error');
-        }
-    }
-    
-    function showLoading(show, type = 'links') {
-        if (show) {
-            if (type === 'links') {
-                linksContainer.innerHTML = '<div class="loading">Extracting links...</div>';
-                extractBtn.disabled = true;
-                extractBtn.textContent = 'Extracting...';
-            } else {
-                emailsContainer.innerHTML = '<div class="loading">Extracting emails...</div>';
-                extractEmailsBtn.disabled = true;
-                extractEmailsBtn.textContent = 'Extracting...';
-            }
-        } else {
-            if (type === 'links') {
-                extractBtn.disabled = false;
-                extractBtn.textContent = '🔄 Refresh Links';
-            } else {
-                extractEmailsBtn.disabled = false;
-                extractEmailsBtn.textContent = '🔄 Refresh Emails';
-            }
-        }
-    }
-    
-    function showSuccessMessage(message = '') {
-        // Only show success notification if links or emails were found
-        if (allLinks.length > 0) {
-            showNotification(`Found ${allLinks.length} links!`);
-        }
-        if (allEmails.length > 0) {
-            showNotification(`Found ${allEmails.length} emails!`);
-        }
-        if (message) {
-            showNotification(message);
-        }
-    }
-    
-    function showNotification(message, type = 'success', duration = 3000) {
-        // Create a simple notification
-        const notification = document.createElement('div');
-        notification.className = `notification ${type}`;
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }, duration);
-    }
-    
-    function showError(message) {
-        const notification = document.createElement('div');
-        notification.className = 'notification error';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-        
-        setTimeout(() => {
-            notification.classList.remove('show');
-            setTimeout(() => {
-                if (document.body.contains(notification)) {
-                    document.body.removeChild(notification);
-                }
-            }, 300);
-        }, 3000);
-    }
-    
-    // Usage tracking functions
-    async function initializeUsageTracking() {
-        try {
-            // Generate a simple device fingerprint for secondary validation
-            const deviceId = await getOrCreateDeviceId();
-            
-            // Get current usage data
-            const result = await chrome.storage.sync.get([STORAGE_KEY, INSTALL_KEY]);
-            const today = new Date().toDateString();
-            let usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Check if this is a first-time install
-            if (!result[INSTALL_KEY]) {
-                await chrome.storage.sync.set({ 
-                    [INSTALL_KEY]: { 
-                        date: Date.now(), 
-                        deviceId: deviceId 
-                    } 
+            const highlightBtn = linkEl.querySelector('.highlight-link');
+            if (link.isVisible) {
+                highlightBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    highlightElementOnPage(link.selector);
                 });
             }
             
-            // Reset count if it's a new day
-            if (usageData.date !== today) {
-                usageData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: deviceId,
-                    created: usageData.created || Date.now(),
-                    lastReset: Date.now()
-                };
-                await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
-            }
+            linksContainer.appendChild(linkEl);
+        });
+        
+        // Add glitch animation to random link every 10 seconds
+        if (filteredLinks.length > 0) {
+            setInterval(() => {
+                const links = document.querySelectorAll('.link-item');
+                if (links.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * links.length);
+                    const randomLink = links[randomIndex];
+                    randomLink.style.animation = 'glitch 0.3s';
+                    setTimeout(() => {
+                        randomLink.style.animation = '';
+                    }, 300);
+                }
+            }, 10000);
             
-            // Validate device consistency (simple anti-abuse measure)
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                // Device mismatch detected - could be data from another device or tampering
-                console.log('Device mismatch detected, checking for data loss scenario...');
-                await handleDeviceMismatch(usageData, deviceId, today);
+            // Add pagination info at the bottom
+            if (filteredLinks.length > 25) {
+                const paginationInfo = document.createElement('div');
+                paginationInfo.className = 'pagination-info';
+                paginationInfo.textContent = `Showing 25/${filteredLinks.length}`;
+                paginationInfo.style.textAlign = 'center';
+                paginationInfo.style.padding = '10px';
+                paginationInfo.style.color = 'var(--neon-blue)';
+                paginationInfo.style.fontFamily = 'Share Tech Mono, monospace';
+                paginationInfo.style.fontSize = '14px';
+                linksContainer.appendChild(paginationInfo);
+            }
+        }
+    }
+
+    function renderEmails() {
+        if (!filteredEmails || filteredEmails.length === 0) {
+            emailsContainer.innerHTML = `
+                <div class="placeholder">
+                    <div class="placeholder-icon">⟨🔍⟩</div>
+                    <div class="placeholder-text">NO EMAILS FOUND</div>
+                </div>
+            `;
+            emailCount.textContent = 'NO EMAILS FOUND';
+            return;
+        }
+        
+        emailCount.textContent = `${filteredEmails.length} EMAILS FOUND`;
+        
+        emailsContainer.innerHTML = '';
+        
+        // Limit display to only 25 emails
+        const emailsToDisplay = filteredEmails.slice(0, 25);
+        
+        emailsToDisplay.forEach(email => {
+            const emailEl = document.createElement('div');
+            emailEl.className = 'email-item';
+            
+            const isVisible = email.isVisible ? 'visible' : 'hidden';
+            
+            emailEl.innerHTML = `
+                <div class="email-header">
+                    <div class="email-source">${email.source || 'TEXT'}</div>
+                    <div class="email-visibility">${isVisible.toUpperCase()}</div>
+                </div>
+                <div class="email-address">
+                    <a href="mailto:${email.email}" class="email-link" title="${email.email}">${email.email}</a>
+                </div>
+                ${email.context ? `<div class="email-context">${email.context}</div>` : ''}
+                <div class="email-actions">
+                    <button class="btn-small copy-email">COPY</button>
+                </div>
+            `;
+            
+            const copyBtn = emailEl.querySelector('.copy-email');
+            copyBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                navigator.clipboard.writeText(email.email).then(() => {
+                    showNotification('EMAIL COPIED');
+                }).catch(err => {
+                    showError('COPY FAILED');
+                });
+            });
+            
+            emailsContainer.appendChild(emailEl);
+        });
+        
+        // Add pagination info at the bottom
+        if (filteredEmails.length > 25) {
+            const paginationInfo = document.createElement('div');
+            paginationInfo.className = 'pagination-info';
+            paginationInfo.textContent = `Showing 25/${filteredEmails.length}`;
+            paginationInfo.style.textAlign = 'center';
+            paginationInfo.style.padding = '10px';
+            paginationInfo.style.color = 'var(--neon-blue)';
+            paginationInfo.style.fontFamily = 'Share Tech Mono, monospace';
+            paginationInfo.style.fontSize = '14px';
+            emailsContainer.appendChild(paginationInfo);
+        }
+    }
+
+    function highlightElementOnPage(selector) {
+        if (!selector) return;
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (!tabs || tabs.length === 0) return;
+            
+            chrome.tabs.sendMessage(tabs[0].id, { action: "highlightElement", selector: selector }, function(response) {
+                if (chrome.runtime.lastError) {
+                    showError('HIGHLIGHT FAILED: ' + chrome.runtime.lastError.message);
+                    return;
+                }
+                
+                if (response && response.success) {
+                    showNotification('ELEMENT HIGHLIGHTED');
+                } else {
+                    showError('ELEMENT NOT FOUND');
+                }
+            });
+        });
+    }
+
+    function showNotification(message) {
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        
+        notificationText.textContent = message;
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+        }, 3000);
+    }
+
+    function showError(message) {
+        const notification = document.getElementById('notification');
+        const notificationText = document.getElementById('notificationText');
+        
+        notification.style.borderColor = '#ff00ff';
+        notification.querySelector('.notification-icon').textContent = '⟨⚠️⟩';
+        notification.querySelector('.notification-progress').style.background = '#ff00ff';
+        
+        notificationText.textContent = message;
+        notification.classList.add('show');
+        
+        setTimeout(() => {
+            notification.classList.remove('show');
+            notification.style.borderColor = '';
+            notification.querySelector('.notification-icon').textContent = '⟨ℹ️⟩';
+            notification.querySelector('.notification-progress').style.background = '';
+        }, 3000);
+    }
+
+    // Matrix Rain Animation
+    function initMatrixRain() {
+        const canvas = document.getElementById('matrixRain');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas dimensions
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const matrix = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const drops = [];
+        const fontSize = 14;
+        const columns = canvas.width / fontSize;
+        
+        for (let i = 0; i < columns; i++) {
+            drops[i] = 1;
+        }
+        
+        function drawMatrixRain() {
+            if (!matrixRainEnabled) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
                 return;
             }
             
-            updateUsageDisplay(usageData.count);
-        } catch (error) {
-            console.error('Error initializing usage tracking:', error);
-            // Fallback to conservative approach
-            showStorageError();
-            updateUsageDisplay(0);
-        }
-    }
-    
-    async function getOrCreateDeviceId() {
-        try {
-            // Create a simple device fingerprint using available browser info
-            const fingerprint = btoa(
-                navigator.userAgent.slice(0, 20) + 
-                navigator.language + 
-                screen.width + 'x' + screen.height +
-                new Date().getTimezoneOffset()
-            ).slice(0, 16);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.04)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            const result = await chrome.storage.sync.get([DEVICE_KEY]);
-            if (result[DEVICE_KEY]) {
-                return result[DEVICE_KEY];
+            ctx.fillStyle = "#0f0";
+            ctx.font = fontSize + "px monospace";
+            
+            // Disco mode easter egg
+            if (discoMode) {
+                ctx.fillStyle = `hsl(${Math.random() * 360}, 100%, 50%)`;
             }
             
-            // Store the device ID
-            await chrome.storage.sync.set({ [DEVICE_KEY]: fingerprint });
-            return fingerprint;
-        } catch (error) {
-            console.error('Error creating device ID:', error);
-            return 'fallback-device';
-        }
-    }
-    
-    async function handleDeviceMismatch(oldData, newDeviceId, today) {
-        try {
-            // This could be a legitimate case where:
-            // 1. User is on a different device (sync storage)
-            // 2. User cleared extension data
-            // 3. Browser profile was reset
-            
-            const installData = await chrome.storage.sync.get([INSTALL_KEY]);
-            const daysSinceInstall = installData[INSTALL_KEY] ? 
-                Math.floor((Date.now() - installData[INSTALL_KEY].date) / (1000 * 60 * 60 * 24)) : 0;
-            
-            // If it's been more than a day since install, be more lenient
-            if (daysSinceInstall > 1) {
-                // Reset usage data for new device
-                const newUsageData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: newDeviceId,
-                    created: Date.now(),
-                    lastReset: Date.now()
-                };
-                await chrome.storage.sync.set({ [STORAGE_KEY]: newUsageData });
-                updateUsageDisplay(0);
-                console.log('Usage data reset for new device');
-            } else {
-                // Keep old data but log the mismatch
-                console.log('Device mismatch detected but keeping existing data');
-                updateUsageDisplay(oldData.count);
-            }
-        } catch (error) {
-            console.error('Error handling device mismatch:', error);
-            updateUsageDisplay(0);
-        }
-    }
-    
-    function showStorageError() {
-        const usageFooter = document.getElementById('usageFooter');
-        usageFooter.innerHTML = `
-            <div class="usage-error">
-                <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
-                    ⚠️ Storage Error<br>
-                    <span style="font-size: 11px; color: #991b1b;">
-                        Unable to track usage. This may be due to browser restrictions.<br>
-                        Extension functionality may be limited.
-                    </span>
-                    <button id="retryBtn" style="
-                        margin-top: 8px;
-                        padding: 4px 8px;
-                        font-size: 10px;
-                        background: #dc2626;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Retry</button>
-                </div>
-            </div>
-        `;
-        
-        // Add event listener for retry button
-        const retryBtn = document.getElementById('retryBtn');
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => {
-                location.reload();
-            });
-        }
-    }
-    
-    async function incrementUsageCount() {
-        try {
-            const deviceId = await getOrCreateDeviceId();
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            let usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Reset count if it's a new day
-            if (usageData.date !== today) {
-                usageData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: deviceId,
-                    created: usageData.created || Date.now(),
-                    lastReset: Date.now()
-                };
+            for (let i = 0; i < drops.length; i++) {
+                const text = matrix[Math.floor(Math.random() * matrix.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                
+                drops[i]++;
             }
             
-            // Validate device consistency
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                console.log('Device mismatch during increment, handling...');
-                await handleDeviceMismatch(usageData, deviceId, today);
-                const newResult = await chrome.storage.sync.get([STORAGE_KEY]);
-                usageData = newResult[STORAGE_KEY];
-            }
-            
-            usageData.count++;
-            usageData.lastUsed = Date.now();
-            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
-            updateUsageDisplay(usageData.count);
-            
-            return usageData.count;
-        } catch (error) {
-            console.error('Error incrementing usage count:', error);
-            return DAILY_LIMIT; // Conservative fallback
-        }
-    }
-    
-    async function getCurrentUsageCount() {
-        try {
-            const deviceId = await getOrCreateDeviceId();
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            const usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Return limit if it's a new day (will be reset on next operation)
-            if (usageData.date !== today) {
-                return 0;
-            }
-            
-            // Validate device consistency
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                console.log('Device mismatch during get, returning conservative count');
-                return Math.min(usageData.count || 0, DAILY_LIMIT);
-            }
-            
-            return usageData.count || 0;
-        } catch (error) {
-            console.error('Error getting usage count:', error);
-            return DAILY_LIMIT; // Conservative fallback
-        }
-    }
-    
-    function updateUsageDisplay(count) {
-        const remaining = Math.max(0, DAILY_LIMIT - count);
-        const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
-        
-        // Update count display
-        usageCount.textContent = `${count}/${DAILY_LIMIT}`;
-        
-        // Update progress bar
-        usageProgressFill.style.width = `${percentage}%`;
-        
-        // Update progress bar color based on usage
-        usageProgressFill.className = 'usage-progress-fill';
-        if (percentage >= 100) {
-            usageProgressFill.classList.add('danger');
-        } else if (percentage >= 80) {
-            usageProgressFill.classList.add('warning');
+            requestAnimationFrame(drawMatrixRain);
         }
         
-        // Update footer content
-        if (count >= DAILY_LIMIT) {
-            showLimitReached();
+        drawMatrixRain();
+    }
+
+    // Easter Egg Functions
+    function checkKonamiCode(e) {
+        konami.push(e.key);
+        
+        if (konami.length > konamiCode.length) {
+            konami.shift();
+        }
+        
+        if (konami.join('') === konamiCode.join('')) {
+            showEasterEgg('KONAMI CODE ACTIVATED', 'You found a secret! The Konami Code has been activated. Enjoy the enhanced visuals and try the "disco" command in the terminal!');
+            easterEggs.konami = true;
+            toggleDiscoMode();
+            checkAllEasterEggs();
+        }
+    }
+    
+    function headerClickEasterEgg() {
+        const now = Date.now();
+        if (now - lastHeaderClick < 500) {
+            clickCount++;
         } else {
-            usageFooter.innerHTML = `
-                <span class="usage-remaining">${remaining} extractions remaining today</span>
-            `;
+            clickCount = 1;
+        }
+        
+        lastHeaderClick = now;
+        
+        if (clickCount === 3) {
+            easterEggs.theme = true;
+            changeTheme('retro');
+            showEasterEgg('RETRO MODE ACTIVATED', 'You found a secret! Retro mode has been activated. Try clicking around for more secrets!');
+            checkAllEasterEggs();
+            clickCount = 0;
         }
     }
     
-    function showLimitReached() {
-        usageFooter.innerHTML = `
-            <div class="usage-limit-reached">
-                <div class="limit-title">Daily Limit Reached</div>
-                <div class="limit-message">
-                    You've used all ${DAILY_LIMIT} free extractions today. Please try again tomorrow!
-                </div>
-                <div class="limit-reset-info">
-                    Free limit resets at midnight
-                </div>
+    function showEasterEgg(title, message) {
+        const easterEggModal = document.getElementById('easterEggModal');
+        const easterEggBody = document.getElementById('easterEggBody');
+        
+        easterEggBody.innerHTML = `
+            <p>${message}</p>
+            <div style="text-align: center; margin-top: 20px;">
+                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjEwMCIgaGVpZ2h0PSIxMDAiIGZpbGw9IiMxYTFhMWEiLz48Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSIzMCIgc3Ryb2tlPSIjZmYwMGZmIiBzdHJva2Utd2lkdGg9IjIiLz48cGF0aCBkPSJNNDAgNTBMNjAgNzBNNDAgNzBMNjAgNTAiIHN0cm9rZT0iIzAwZjNmZiIgc3Ryb2tlLXdpZHRoPSIzIi8+PHRleHQgeD0iNTAiIHk9IjQwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTAiIGZpbGw9IiNmZmZmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkVhc3RlciBFZ2c8L3RleHQ+PC9zdmc+" alt="Easter Egg" style="width: 100px; height: 100px;">
             </div>
         `;
         
-        // Disable the extract buttons
-        extractBtn.disabled = true;
-        extractBtn.textContent = '🚫 Daily Limit Reached';
-        extractBtn.style.opacity = '0.6';
-        extractBtn.style.cursor = 'not-allowed';
+        easterEggModal.querySelector('.easter-egg-header h3').textContent = title;
+        easterEggModal.classList.add('show');
         
-        extractEmailsBtn.disabled = true;
-        extractEmailsBtn.textContent = '🚫 Daily Limit Reached';
-        extractEmailsBtn.style.opacity = '0.6';
-        extractEmailsBtn.style.cursor = 'not-allowed';
+        // Audio disabled - no sound will play
+        /*
+        const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vm//lNuPXkQyM//Jnw//wH///iv/////3///+7/////cAAAA3QAAABfJy49Bd/HQkYAAAADCQdM7dm8LJJpavpakxLnLViiStS0nJ/JvGp+YcbzVO3ANYQg+Md0zKoYJ8yNKcaLm29vblSft61dMzpK0TzqqVrFYUnTZKfTpSk9TIOWBLY5LquNZk1IHTuZLTta9XnlW7V13Vd227ji+vu5O8r9crvquPq5RwP/un91dM3TZPT1uFff+9i20xq+vrRb7/2m8t1++ndnrc2TJV22ZdVVfcOfK3b9xwNl7quHn5em7TuWUqdW8v9o9urqpN6zrNa7ixbKbt1Vp3uufFaVu9Wfj1du6vTROt3V3WjvGv5Ss+V6nab6Ou+6HutW9J13Z7Ld9w/FtX+9yrW97vtpVvV1qK+7fvxb26O29D76uWd23WrZO7e3evM/f6vdt+3d/W3t5+/2/d72znf7933e9c/Pu77jt');
+        audio.play();
+        */
+    }
+    
+    function checkAllEasterEggs() {
+        let foundCount = 0;
+        for (const egg in easterEggs) {
+            if (easterEggs[egg]) foundCount++;
+        }
+        
+        if (foundCount === Object.keys(easterEggs).length) {
+            setTimeout(() => {
+                showEasterEgg('MASTER EGG HUNTER', 'Congratulations! You found all easter eggs in the extension. You are truly a digital explorer! Try the "42" command in the terminal for the answer to the ultimate question.');
+                
+                // Add a special theme
+                document.body.style.background = `linear-gradient(135deg, #00f3ff 0%, #ff00ff 100%)`;
+                document.querySelector('.neo-header').style.boxShadow = '0 0 30px rgba(255, 255, 255, 0.5)';
+                headerTitle.innerHTML = '<span class="neo" style="color: gold; text-shadow: 0 0 10px gold;">NEO</span><span class="xtract">XTRACT</span>';
+            }, 1000);
+        }
+    }
+
+    // Terminal Commands
+    function showSecretTerminal() {
+        secretTerminal.classList.remove('hidden');
+        terminalInput.focus();
+        addTerminalLine('> TERMINAL ACCESS GRANTED');
+        addTerminalLine('> TYPE "help" FOR AVAILABLE COMMANDS');
+    }
+    
+    function closeTerminalWindow() {
+        secretTerminal.classList.add('hidden');
+    }
+    
+    function processTerminalCommand(command) {
+        addTerminalLine(`$ ${command}`);
+        
+        if (command === '') {
+            return;
+        }
+        
+        // Check if command exists
+        const commandFn = terminalCommands[command];
+        if (commandFn) {
+            commandFn();
+        } else {
+            // Handle command not found
+            addTerminalLine(`> COMMAND NOT RECOGNIZED: "${command}"`);
+            addTerminalLine('> TYPE "help" FOR AVAILABLE COMMANDS');
+        }
+    }
+    
+    function addTerminalLine(text) {
+        const line = document.createElement('p');
+        line.textContent = text;
+        terminalOutput.appendChild(line);
+        terminalOutput.scrollTop = terminalOutput.scrollHeight;
+    }
+    
+    function showHelpCommand() {
+        addTerminalLine('> AVAILABLE COMMANDS:');
+        addTerminalLine('  help        - Show this help message');
+        addTerminalLine('  clear       - Clear terminal');
+        addTerminalLine('  matrix      - Toggle matrix rain effect');
+        addTerminalLine('  theme       - Change theme (cyber/retro/neon/dark)');
+        addTerminalLine('  hack        - "Hack" the current website (joke)');
+        addTerminalLine('  about       - Show extension info');
+        addTerminalLine('  ls          - List all commands');
+        addTerminalLine('  debug       - Toggle debug mode');
+        addTerminalLine('  stats       - Show your usage statistics');
+        addTerminalLine('  flip        - Flip the UI upside down');
+        addTerminalLine('  disco       - Toggle disco mode');
+        addTerminalLine('  exit        - Close terminal');
+        addTerminalLine('> THERE MAY BE HIDDEN COMMANDS...');
+    }
+    
+    function clearTerminal() {
+        terminalOutput.innerHTML = '';
+    }
+    
+    function toggleMatrixRain() {
+        matrixRainEnabled = !matrixRainEnabled;
+        addTerminalLine(`> MATRIX RAIN EFFECT: ${matrixRainEnabled ? 'ENABLED' : 'DISABLED'}`);
+    }
+    
+    function changeTheme(themeName) {
+        if (!themeName) {
+            addTerminalLine('> AVAILABLE THEMES:');
+            addTerminalLine('  cyber  - Default cyberpunk theme');
+            addTerminalLine('  retro  - Retro computing theme');
+            addTerminalLine('  neon   - Bright neon colors');
+            addTerminalLine('  dark   - Low-light dark theme');
+            addTerminalLine('> USAGE: theme neon');
+            return;
+        }
+        
+        const body = document.body;
+        const root = document.documentElement;
+        
+        switch(themeName) {
+            case 'cyber':
+                root.style.setProperty('--neon-blue', '#00f3ff');
+                root.style.setProperty('--neon-pink', '#ff00ff');
+                root.style.setProperty('--bg-dark', '#0f0f1a');
+                root.style.setProperty('--bg-darker', '#080812');
+                currentTheme = 'cyber';
+                addTerminalLine('> THEME SET TO: CYBER');
+                break;
+            case 'retro':
+                root.style.setProperty('--neon-blue', '#39ff14');
+                root.style.setProperty('--neon-pink', '#ff6b35');
+                root.style.setProperty('--bg-dark', '#222222');
+                root.style.setProperty('--bg-darker', '#111111');
+                currentTheme = 'retro';
+                addTerminalLine('> THEME SET TO: RETRO');
+                break;
+            case 'neon':
+                root.style.setProperty('--neon-blue', '#fe00fe');
+                root.style.setProperty('--neon-pink', '#00fefe');
+                root.style.setProperty('--bg-dark', '#0a0a0a');
+                root.style.setProperty('--bg-darker', '#050505');
+                currentTheme = 'neon';
+                addTerminalLine('> THEME SET TO: NEON');
+                break;
+            case 'dark':
+                root.style.setProperty('--neon-blue', '#4d5bce');
+                root.style.setProperty('--neon-pink', '#915c83');
+                root.style.setProperty('--bg-dark', '#151515');
+                root.style.setProperty('--bg-darker', '#101010');
+                currentTheme = 'dark';
+                addTerminalLine('> THEME SET TO: DARK');
+                break;
+            default:
+                addTerminalLine(`> UNKNOWN THEME: ${themeName}`);
+                return;
+        }
+    }
+    
+    function hackWebsite() {
+        addTerminalLine('> INITIALIZING HACK SEQUENCE...');
+        
+        setTimeout(() => addTerminalLine('> BYPASSING SECURITY...'), 500);
+        setTimeout(() => addTerminalLine('> ACCESSING MAINFRAME...'), 1200);
+        setTimeout(() => addTerminalLine('> DOWNLOADING DATA...'), 1800);
+        setTimeout(() => addTerminalLine('> HACK COMPLETE!'), 2500);
+        setTimeout(() => addTerminalLine('> JK THIS IS JUST A FUN EASTER EGG :)'), 3200);
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+            if (!tabs || tabs.length === 0) return;
+            
+            // Add a fun visual effect to the page
+            chrome.scripting.executeScript({
+                target: { tabId: tabs[0].id },
+                func: () => {
+                    // Create an overlay
+                    const overlay = document.createElement('div');
+                    overlay.style.position = 'fixed';
+                    overlay.style.top = '0';
+                    overlay.style.left = '0';
+                    overlay.style.right = '0';
+                    overlay.style.bottom = '0';
+                    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+                    overlay.style.zIndex = '9999';
+                    overlay.style.display = 'flex';
+                    overlay.style.flexDirection = 'column';
+                    overlay.style.alignItems = 'center';
+                    overlay.style.justifyContent = 'center';
+                    overlay.style.fontFamily = 'monospace';
+                    overlay.style.color = '#39ff14';
+                    overlay.style.fontSize = '24px';
+                    overlay.style.textAlign = 'center';
+                    
+                    overlay.innerHTML = `
+                        <div>SYSTEM HACKED</div>
+                        <div style="font-size: 50px; margin: 20px 0;">☠️</div>
+                        <div>THIS IS JUST A HARMLESS EASTER EGG</div>
+                        <div style="margin-top: 40px; font-size: 16px;">Click anywhere to dismiss</div>
+                    `;
+                    
+                    document.body.appendChild(overlay);
+                    
+                    // Remove after click
+                    overlay.addEventListener('click', () => {
+                        overlay.remove();
+                    });
+                    
+                    // Auto-remove after 5 seconds
+                    setTimeout(() => {
+                        overlay.remove();
+                    }, 5000);
+                }
+            });
+        });
+    }
+    
+    function showAboutInfo() {
+        addTerminalLine('> NEO-XTRACT v3.7');
+        addTerminalLine('> DATA EXTRACTION UTILITY');
+        addTerminalLine('> COPYRIGHT 2025');
+        addTerminalLine('> THIS EXTENSION EXTRACTS LINKS AND EMAILS FROM WEB PAGES');
+        addTerminalLine('> CONTAINS MULTIPLE EASTER EGGS AND HIDDEN FEATURES');
+    }
+    
+    function listCommands() {
+        addTerminalLine('> COMMAND LIST:');
+        
+        Object.keys(terminalCommands).forEach(cmd => {
+            addTerminalLine(`  ${cmd}`);
+        });
+    }
+    
+    function toggleDebugMode() {
+        debugMode = !debugMode;
+        addTerminalLine(`> DEBUG MODE: ${debugMode ? 'ENABLED' : 'DISABLED'}`);
+        
+        if (debugMode) {
+            addTerminalLine('> EXTRACTION COUNT: ' + extractionCount);
+            addTerminalLine('> THEME: ' + currentTheme);
+            addTerminalLine('> EASTER EGGS FOUND: ' + Object.values(easterEggs).filter(e => e).length + '/' + Object.keys(easterEggs).length);
+        }
+    }
+    
+    function showStats() {
+        addTerminalLine('> USER STATISTICS:');
+        addTerminalLine(`> EXTRACTION COUNT: ${extractionCount}`);
+        addTerminalLine(`> LINKS EXTRACTED: ${allLinks.length}`);
+        addTerminalLine(`> EMAILS EXTRACTED: ${allEmails.length}`);
+        addTerminalLine(`> CURRENT THEME: ${currentTheme.toUpperCase()}`);
+        addTerminalLine(`> ACHIEVEMENTS: ${Object.values(easterEggs).filter(e => e).length}/${Object.keys(easterEggs).length}`);
+        
+        if (extractionCount >= 10) {
+            addTerminalLine('> ACHIEVEMENT UNLOCKED: POWER USER 🏆');
+        }
+    }
+    
+    function flipContent() {
+        document.querySelector('.neo-content').style.transform = 
+            document.querySelector('.neo-content').style.transform === 'rotate(180deg)' ? '' : 'rotate(180deg)';
+            
+        addTerminalLine('> CONTENT FLIPPED');
+    }
+    
+    function toggleDiscoMode() {
+        discoMode = !discoMode;
+        addTerminalLine(`> DISCO MODE: ${discoMode ? 'ENABLED' : 'DISABLED'}`);
+        
+        if (discoMode) {
+            const interval = setInterval(() => {
+                if (!discoMode) {
+                    clearInterval(interval);
+                    document.documentElement.style.setProperty('--neon-blue', '#00f3ff');
+                    document.documentElement.style.setProperty('--neon-pink', '#ff00ff');
+                    return;
+                }
+                
+                // Generate random neon colors
+                const randomColor1 = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                const randomColor2 = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                
+                document.documentElement.style.setProperty('--neon-blue', randomColor1);
+                document.documentElement.style.setProperty('--neon-pink', randomColor2);
+            }, 1000);
+        } else {
+            document.documentElement.style.setProperty('--neon-blue', '#00f3ff');
+            document.documentElement.style.setProperty('--neon-pink', '#ff00ff');
+        }
+    }
+    
+    function showAnswer() {
+        addTerminalLine("> THE ANSWER TO THE ULTIMATE QUESTION OF LIFE, THE UNIVERSE, AND EVERYTHING IS...");
+        
+        setTimeout(() => {
+            addTerminalLine("> 42");
+        }, 2000);
     }
 });
+
+// Note: All content script functions (extractLinksFromPage, extractEmailsFromPage, etc.)
+// are defined in content.js and we communicate with them using Chrome messaging API
