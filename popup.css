@@ -622,11 +622,61 @@ body {
     display: inline-block;
     width: calc(50% - 6px);
     margin-right: 6px;
+    margin-bottom: 12px;
 }
 
-.content > .btn-secondary:last-of-type {
+.content > .btn-secondary:nth-child(even) {
     margin-right: 0;
     margin-left: 6px;
+}
+
+/* Export button specific styling */
+#exportExcel {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+}
+
+#exportExcel:hover:not(:disabled) {
+    background: linear-gradient(135deg, #218838 0%, #17a2b8 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+#exportGoogleSheets {
+    background: linear-gradient(135deg, #0f9d58 0%, #34a853 100%);
+    color: white;
+    border: none;
+}
+
+#exportGoogleSheets:hover:not(:disabled) {
+    background: linear-gradient(135deg, #0d8043 0%, #2d8f3f 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 157, 88, 0.3);
+}
+
+/* Loading state for export buttons */
+.btn-secondary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-secondary:disabled::before {
+    display: none;
+}
+
+/* Enhanced notification for longer messages */
+.notification {
+    max-width: 300px;
+    word-wrap: break-word;
+    line-height: 1.4;
+}
+
+.notification.info {
+    background: #e1f5fe;
+    color: #0277bd;
+    border: 1px solid #b3e5fc;
 }
 
 /* Professional loading state with skeleton */

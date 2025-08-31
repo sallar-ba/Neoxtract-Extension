@@ -2,6 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const extractBtn = document.getElementById('extractLinks');
     const copyAllBtn = document.getElementById('copyAll');
     const exportJsonBtn = document.getElementById('exportJson');
+    const exportExcelBtn = document.getElementById('exportExcel');
+    const exportGoogleSheetsBtn = document.getElementById('exportGoogleSheets');
     const searchInput = document.getElementById('searchInput');
     const filterInternal = document.getElementById('filterInternal');
     const filterExternal = document.getElementById('filterExternal');
@@ -153,6 +155,117 @@ document.addEventListener('DOMContentLoaded', function() {
         URL.revokeObjectURL(url);
         
         showNotification('Links exported as JSON!');
+    });
+    
+    // Export Excel button
+    exportExcelBtn.addEventListener('click', () => {
+        try {
+            // Show loading state
+            exportExcelBtn.disabled = true;
+            exportExcelBtn.innerHTML = '⏳ Creating Excel...';
+            
+            // Prepare data for Excel
+            const worksheetData = [
+                ['URL', 'Text', 'Type', 'Domain', 'Visible on Page']
+            ];
+            
+            filteredLinks.forEach(link => {
+                worksheetData.push([
+                    link.url,
+                    link.text || 'No text',
+                    link.isExternal ? 'External' : 'Internal',
+                    link.domain,
+                    link.isVisible ? 'Yes' : 'No'
+                ]);
+            });
+            
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 50 }, // URL
+                { wch: 30 }, // Text
+                { wch: 12 }, // Type
+                { wch: 20 }, // Domain
+                { wch: 15 }  // Visible
+            ];
+            
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Links');
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `links-${timestamp}.xlsx`;
+            
+            // Write file
+            XLSX.writeFile(wb, filename);
+            
+            // Success feedback
+            exportExcelBtn.innerHTML = '✅ Downloaded!';
+            showNotification('Links exported to Excel!');
+            
+        } catch (error) {
+            console.error('Error exporting to Excel:', error);
+            showError('Failed to export to Excel: ' + error.message);
+            exportExcelBtn.innerHTML = '❌ Failed';
+        } finally {
+            // Reset button state after delay
+            setTimeout(() => {
+                exportExcelBtn.disabled = false;
+                exportExcelBtn.innerHTML = '📊 Export to Excel';
+            }, 2000);
+        }
+    });
+    
+    // Export to Google Sheets button
+    exportGoogleSheetsBtn.addEventListener('click', async () => {
+        try {
+            // Show loading state
+            exportGoogleSheetsBtn.disabled = true;
+            exportGoogleSheetsBtn.innerHTML = '⏳ Preparing...';
+            
+            // Prepare data for Google Sheets
+            const csvData = prepareCSVData(filteredLinks);
+            
+            // Create a CSV file
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            a.download = `links-${timestamp}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            // Create Google Sheets import URL
+            const sheetsUrl = 'https://docs.google.com/spreadsheets/create';
+            
+            // Open Google Sheets in a new tab
+            await chrome.tabs.create({ 
+                url: sheetsUrl,
+                active: true
+            });
+            
+            // Show detailed instructions
+            setTimeout(() => {
+                showNotification('CSV downloaded! In Google Sheets: File → Import → Upload → Select your CSV file', 'info', 5000);
+            }, 1000);
+            
+        } catch (error) {
+            console.error('Error preparing Google Sheets export:', error);
+            showError('Failed to prepare Google Sheets export: ' + error.message);
+        } finally {
+            // Reset button state
+            setTimeout(() => {
+                exportGoogleSheetsBtn.disabled = false;
+                exportGoogleSheetsBtn.innerHTML = '📈 Export to Google Sheets';
+            }, 2000);
+        }
     });
     
     // Search functionality
@@ -315,7 +428,27 @@ document.addEventListener('DOMContentLoaded', function() {
     function enableControls() {
         copyAllBtn.disabled = false;
         exportJsonBtn.disabled = false;
+        exportExcelBtn.disabled = false;
+        exportGoogleSheetsBtn.disabled = false;
         searchInput.disabled = false;
+    }
+    
+    function prepareCSVData(links) {
+        // CSV header
+        let csv = 'URL,Text,Type,Domain,Visible on Page\n';
+        
+        // CSV rows
+        links.forEach(link => {
+            const url = `"${(link.url || '').replace(/"/g, '""')}"`;
+            const text = `"${(link.text || 'No text').replace(/"/g, '""')}"`;
+            const type = link.isExternal ? 'External' : 'Internal';
+            const domain = `"${(link.domain || '').replace(/"/g, '""')}"`;
+            const visible = link.isVisible ? 'Yes' : 'No';
+            
+            csv += `${url},${text},${type},${domain},${visible}\n`;
+        });
+        
+        return csv;
     }
     
     function showLoading(show) {
@@ -336,10 +469,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function showNotification(message) {
+    function showNotification(message, type = 'success', duration = 3000) {
         // Create a simple notification
         const notification = document.createElement('div');
-        notification.className = 'notification success';
+        notification.className = `notification ${type}`;
         notification.textContent = message;
         document.body.appendChild(notification);
         
@@ -350,9 +483,11 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
-        }, 2000);
+        }, duration);
     }
     
     function showError(message) {

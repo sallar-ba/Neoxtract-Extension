@@ -10,7 +10,9 @@ A powerful Chrome extension that extracts and analyzes all links from any webpag
 - **🔎 Search & Filter**: Search through extracted links and filter by type
 - **📋 Copy Links**: Copy individual links or all links at once
 - **📄 Export Data**: Export link data as JSON for further analysis
-- **🔄 Refresh Option**: Manual refresh button for updated content
+- **� Excel Export**: Download links as an Excel (.xlsx) file with formatting
+- **📈 Google Sheets**: Export to Google Sheets via CSV import
+- **�🔄 Refresh Option**: Manual refresh button for updated content
 - **📱 Responsive Design**: Clean, modern UI that works reliably
 
 ## Installation
@@ -41,7 +43,9 @@ A powerful Chrome extension that extracts and analyzes all links from any webpag
    - **Search**: Type in the search box to filter links
    - **Filter**: Toggle internal/external link visibility
    - **Copy**: Click "Copy All Links" to copy all links to clipboard
-   - **Export**: Click "Export as JSON" to download link data
+   - **Export JSON**: Click "Export as JSON" to download link data
+   - **Export Excel**: Click "Export to Excel" to download formatted .xlsx file
+   - **Export Google Sheets**: Click "Export to Google Sheets" for CSV download and auto-open Google Sheets
    - **Refresh**: Click "Refresh Links" if page content has changed
 
 ## File Structure
@@ -52,7 +56,9 @@ linkExtractor/
 ├── popup.html         # Extension popup interface
 ├── popup.js           # Popup logic and interactions
 ├── content.js         # Content script for link extraction
-├── styles.css         # Styling for the popup
+├── popup.css          # Styling for the popup
+├── lib/               # External libraries
+│   └── xlsx.min.js    # Excel export functionality
 ├── icons/             # Extension icons
 │   ├── icon.svg       # SVG icon source
 │   ├── icon16.png     # 16x16 icon
@@ -77,13 +83,32 @@ For each link, the extension extracts:
 - **Text**: The visible link text
 - **Type**: Internal or external classification
 - **Domain**: The link's domain name
+- **Visibility**: Whether the link is visible on the page
+
+## Export Options
+
+### 📄 JSON Export
+- Downloads a comprehensive JSON file with all link data
+- Includes metadata like export timestamp and total count
+- Perfect for developers and data analysis
+
+### 📊 Excel Export
+- Downloads a formatted .xlsx file
+- Organized in columns: URL, Text, Type, Domain, Visibility
+- Optimized column widths for easy reading
+- Compatible with Microsoft Excel and other spreadsheet applications
+
+### 📈 Google Sheets Export
+- Downloads CSV file and opens Google Sheets in a new tab
+- Follow the import wizard: File → Import → Upload → Select CSV file
+- Automatically formats data for easy sharing and collaboration
 
 ## Privacy & Security
 
 - **No Data Collection**: This extension does not collect or store any personal data
 - **Local Processing**: All link extraction happens locally in your browser
 - **No Network Requests**: The extension doesn't send data to external servers
-- **Minimal Permissions**: Only requests necessary permissions (activeTab, scripting)
+- **Minimal Permissions**: Only requests necessary permissions (activeTab, scripting, tabs for Google Sheets export)
 
 ## Browser Compatibility
 
@@ -107,7 +132,7 @@ For each link, the extension extracts:
 - The extension automatically injects content scripts when needed
 
 ### Permission Issues
-- The extension requires the "activeTab" and "scripting" permissions
+- The extension requires the "activeTab", "scripting", and "tabs" permissions
 - Make sure you've granted necessary permissions during installation
 
 ## License
