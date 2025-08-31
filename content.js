@@ -121,90 +121,94 @@
     // Function to extract all emails from the page
     function extractEmails() {
         const emails = [];
+        const currentDomain = window.location.hostname;
+        
+        // Regular expression to match email addresses
         const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-        const processedEmails = new Set();
         
-        // Extract from text content
-        const textNodes = document.createTreeWalker(
-            document.body,
-            NodeFilter.SHOW_TEXT,
-            null,
-            false
-        );
-        
+        // Extract emails from text content
+        const textNodes = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
         let node;
         while (node = textNodes.nextNode()) {
-            const matches = node.textContent.match(emailRegex);
-            if (matches) {
-                matches.forEach(email => {
-                    if (!processedEmails.has(email.toLowerCase())) {
-                        processedEmails.add(email.toLowerCase());
-                        
-                        // Check if email is visible
-                        const range = document.createRange();
-                        range.selectNodeContents(node);
-                        const rect = range.getBoundingClientRect();
-                        const isVisible = rect.width > 0 && rect.height > 0 && 
-                                        rect.top < window.innerHeight && rect.bottom > 0;
-                        
-                        emails.push({
-                            id: emails.length,
-                            email: email,
-                            source: 'text',
-                            isVisible: isVisible,
-                            context: node.textContent.substring(
-                                Math.max(0, node.textContent.indexOf(email) - 50),
-                                node.textContent.indexOf(email) + email.length + 50
-                            ).trim()
-                        });
-                    }
+            const text = node.textContent;
+            let match;
+            while ((match = emailRegex.exec(text)) !== null) {
+                const email = match[0];
+                const context = text.substring(Math.max(0, match.index - 50), match.index + email.length + 50);
+                
+                // Check if email is visible
+                const range = document.createRange();
+                range.setStart(node, match.index);
+                range.setEnd(node, match.index + email.length);
+                const rect = range.getBoundingClientRect();
+                const isVisible = rect.width > 0 && rect.height > 0 && 
+                    rect.top >= 0 && rect.left >= 0 && 
+                    rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && 
+                    rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+                
+                // Get domain from email
+                const domain = email.split('@')[1] || currentDomain;
+                
+                emails.push({
+                    email: email,
+                    source: 'text',
+                    isVisible: isVisible,
+                    context: context.trim(),
+                    domain: domain
                 });
             }
         }
         
-        // Extract from mailto links
-        const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
-        mailtoLinks.forEach((link, index) => {
-            const href = link.href;
-            const email = href.replace('mailto:', '').split('?')[0]; // Remove query params
-            
-            if (email && !processedEmails.has(email.toLowerCase())) {
-                processedEmails.add(email.toLowerCase());
+        // Extract emails from input fields
+        const inputs = document.querySelectorAll('input[type="email"], input[type="text"], textarea');
+        inputs.forEach(input => {
+            const value = input.value;
+            if (value && emailRegex.test(value)) {
+                const isVisible = isElementVisible(input);
+                const domain = value.split('@')[1] || currentDomain;
                 
                 emails.push({
-                    id: emails.length,
+                    email: value,
+                    source: 'input',
+                    isVisible: isVisible,
+                    context: input.placeholder || input.name || '',
+                    domain: domain
+                });
+            }
+        });
+        
+        // Extract emails from mailto links
+        const mailtoLinks = document.querySelectorAll('a[href^="mailto:"]');
+        mailtoLinks.forEach(link => {
+            const href = link.href;
+            const email = href.replace('mailto:', '');
+            if (email && emailRegex.test(email)) {
+                const isVisible = isElementVisible(link);
+                const domain = email.split('@')[1] || currentDomain;
+                
+                emails.push({
                     email: email,
                     source: 'mailto',
-                    isVisible: isElementVisible(link),
-                    context: link.textContent.trim() || email,
-                    linkText: link.textContent.trim()
+                    isVisible: isVisible,
+                    context: link.textContent.trim() || '',
+                    domain: domain
                 });
             }
         });
         
-        // Extract from input fields (common email inputs)
-        const emailInputs = document.querySelectorAll('input[type="email"], input[name*="email"], input[id*="email"]');
-        emailInputs.forEach(input => {
-            const email = input.value.trim();
-            if (email && emailRegex.test(email) && !processedEmails.has(email.toLowerCase())) {
-                processedEmails.add(email.toLowerCase());
-                
-                emails.push({
-                    id: emails.length,
-                    email: email,
-                    source: 'input',
-                    isVisible: isElementVisible(input),
-                    context: `Input field: ${input.name || input.id || 'email'}`,
-                    fieldName: input.name || input.id
-                });
-            }
-        });
+        // Remove duplicates
+        const uniqueEmails = emails.filter((email, index, self) => 
+            index === self.findIndex(e => e.email === email.email)
+        );
+        
+        const visibleCount = uniqueEmails.filter(email => email.isVisible).length;
+        const hiddenCount = uniqueEmails.length - visibleCount;
         
         return {
-            emails: emails,
-            totalCount: emails.length,
-            visibleCount: emails.filter(email => email.isVisible).length,
-            hiddenCount: emails.length - emails.filter(email => email.isVisible).length,
+            emails: uniqueEmails,
+            totalCount: uniqueEmails.length,
+            visibleCount: visibleCount,
+            hiddenCount: hiddenCount,
             currentUrl: window.location.href,
             pageTitle: document.title,
             extractedAt: new Date().toISOString()
