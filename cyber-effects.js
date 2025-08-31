@@ -23,8 +23,8 @@ class CyberEffects {
     this.matrixRainActive = true;
     this.cyberTheme = 'default';
     
-    // Sound effects (if allowed)
-    this.soundEnabled = false;
+    // Sound effects permanently disabled
+    this.soundEnabled = false; // This will never change - sounds permanently disabled
     this.init();
   }
   
@@ -75,10 +75,10 @@ class CyberEffects {
       });
     }, duration);
     
-    // Play glitch sound if enabled
-    if (this.soundEnabled) {
-      CyberSounds.play('glitch');
-    }
+    // Sound disabled
+    // if (this.soundEnabled) {
+    //   CyberSounds.play('glitch');
+    // }
   }
   
   // Trigger Matrix Rain effect
@@ -113,24 +113,23 @@ class CyberEffects {
     // Save preference
     this.savePreferences();
     
-    // Play theme change sound if enabled
-    if (this.soundEnabled) {
-      CyberSounds.play('themeChange');
-    }
+    // Sound disabled
+    // if (this.soundEnabled) {
+    //   CyberSounds.play('themeChange');
+    // }
     
     return theme;
   }
   
-  // Toggle sound effects
+  // Toggle sound effects - disabled
   toggleSounds() {
-    this.soundEnabled = !this.soundEnabled;
+    // Sounds permanently disabled, this function does nothing now
+    this.soundEnabled = false; // Always keep sounds disabled
     this.savePreferences();
     
-    if (this.soundEnabled) {
-      CyberSounds.play('activate');
-    }
+    // No sound will ever play
     
-    return this.soundEnabled;
+    return false; // Always return false to indicate sounds are disabled
   }
   
   // Save user preferences
@@ -152,7 +151,7 @@ class CyberEffects {
       if (saved) {
         const prefs = JSON.parse(saved);
         this.cyberTheme = prefs.cyberTheme || 'default';
-        this.soundEnabled = prefs.soundEnabled || false;
+        this.soundEnabled = false; // Always false, regardless of saved preferences (sounds permanently disabled)
         this.matrixRainActive = prefs.matrixRainActive !== undefined ? prefs.matrixRainActive : true;
         this.easterEggStates = prefs.easterEggStates || this.easterEggStates;
         
@@ -178,32 +177,36 @@ class CyberEffects {
         this.applyGlitchEffect(3, 2000);
         this.showEasterEggMessage('GOD MODE ACTIVATED', 'You found the Konami Code Easter Egg! Special abilities unlocked.');
         document.body.classList.add('konami-active');
-        if (this.soundEnabled) {
-          CyberSounds.play('achievement');
-        }
+        // Sound disabled
+        // if (this.soundEnabled) {
+        //   CyberSounds.play('achievement');
+        // }
         break;
         
       case 'terminalAccess':
         this.showEasterEggMessage('TERMINAL ACCESS GRANTED', 'You discovered the secret terminal! Type "help" to see available commands.');
-        if (this.soundEnabled) {
-          CyberSounds.play('terminal');
-        }
+        // Sound disabled
+        // if (this.soundEnabled) {
+        //   CyberSounds.play('terminal');
+        // }
         break;
         
       case 'secretCommand':
         this.applyGlitchEffect(2, 1500);
         this.showEasterEggMessage('OVERRIDE ACCEPTED', 'Secret command executed successfully. New functions available.');
-        if (this.soundEnabled) {
-          CyberSounds.play('secretCmd');
-        }
+        // Sound disabled
+        // if (this.soundEnabled) {
+        //   CyberSounds.play('secretCmd');
+        // }
         break;
         
       case 'clickPattern':
         this.showEasterEggMessage('PATTERN RECOGNIZED', 'You found the secret click pattern! Secret theme activated.');
         this.setCyberTheme('hacker');
-        if (this.soundEnabled) {
-          CyberSounds.play('unlock');
-        }
+        // Sound disabled
+        // if (this.soundEnabled) {
+        //   CyberSounds.play('unlock');
+        // }
         break;
         
       // Voice command case removed per user request
@@ -276,9 +279,10 @@ class CyberEffects {
     document.body.classList.add('master-hunter');
     this.applyGlitchEffect(5, 5000);
     
-    if (this.soundEnabled) {
-      CyberSounds.play('masterAchievement');
-    }
+    // Sound disabled
+    // if (this.soundEnabled) {
+    //   CyberSounds.play('masterAchievement');
+    // }
     
     // Add special visual effect to the UI
     const specialElement = document.createElement('div');

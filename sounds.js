@@ -256,6 +256,11 @@ class CyberSounds {
   
   // Play a sound by name
   static play(soundName) {
+    // Sounds disabled
+    return;
+    
+    // The following code is disabled
+    /*
     if (!window.cyberSounds) {
       window.cyberSounds = new CyberSounds();
     }
@@ -264,6 +269,7 @@ class CyberSounds {
     if (sound) {
       sound();
     }
+    */
   }
 }
 

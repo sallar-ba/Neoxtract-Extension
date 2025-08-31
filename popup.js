@@ -906,9 +906,11 @@ document.addEventListener('DOMContentLoaded', function() {
         easterEggModal.querySelector('.easter-egg-header h3').textContent = title;
         easterEggModal.classList.add('show');
         
-        // Add achievement sound
+        // Audio disabled - no sound will play
+        /*
         const audio = new Audio('data:audio/wav;base64,//uQRAAAAWMSLwUIYAAsYkXgoQwAEaYLWfkWgAI0wWs/ItAAAGDgYtAgAyN+QWaAAihwMWm4G8QQRDiMcCBcH3Cc+CDv/7xA4Tvh9Rz/y8QADBwMWgQAZG/ILNAARQ4GLTcDeIIIhxGOBAuD7hOfBB3/94gcJ3w+o5/5eIAIAAAVwWgQAVQ2ORaIQwEMAJiDg95G4nQL7mQVWI6GwRcfsZAcsKkJvxgxEjzFUgfHoSQ9Qq7KNwqHwuB13MA4a1q/DmBrHgPcmjiGoh//EwC5nGPEmS4RcfkVKOhJf+WOgoxJclFz3kgn//dBA+ya1GhurNn8zb//9NNutNuhz31f////9vt///z+IdAEAAAK4LQIAKobHItEIYCGAExBwe8jcToF9zIKrEdDYIuP2MgOWFSE34wYiR5iqQPj0JIeoVdlG4VD4XA67mAcNa1fhzA1jwHuTRxDUQ//iYBczjHiTJcIuPyKlHQkv/LHQUYkuSi57yQT//uggfZNajQ3Vm//lNuPXkQyM//Jnw//wH///iv/////3///+7/////cAAAA3QAAABfJy49Bd/HQkYAAAADCQdM7dm8LJJpavpakxLnLViiStS0nJ/JvGp+YcbzVO3ANYQg+Md0zKoYJ8yNKcaLm29vblSft61dMzpK0TzqqVrFYUnTZKfTpSk9TIOWBLY5LquNZk1IHTuZLTta9XnlW7V13Vd227ji+vu5O8r9crvquPq5RwP/un91dM3TZPT1uFff+9i20xq+vrRb7/2m8t1++ndnrc2TJV22ZdVVfcOfK3b9xwNl7quHn5em7TuWUqdW8v9o9urqpN6zrNa7ixbKbt1Vp3uufFaVu9Wfj1du6vTROt3V3WjvGv5Ss+V6nab6Ou+6HutW9J13Z7Ld9w/FtX+9yrW97vtpVvV1qK+7fvxb26O29D76uWd23WrZO7e3evM/f6vdt+3d/W3t5+/2/d72znf7933e9c/Pu77jt');
         audio.play();
+        */
     }
     
     function checkAllEasterEggs() {
