@@ -1,8 +1,4 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize ExtPay for Stripe payments
-    // Replace 'extractor' with your actual ExtPay extension ID
-    const extpay = ExtPay('extractor'); // Your ExtPay ID
-    
     const extractBtn = document.getElementById('extractLinks');
     const copyAllBtn = document.getElementById('copyAll');
     const exportJsonBtn = document.getElementById('exportJson');
@@ -13,9 +9,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const linksContainer = document.getElementById('linksContainer');
     const linkCount = document.getElementById('linkCount');
     
-    // Mode toggle elements
-    const autoModeBtn = document.getElementById('autoModeBtn');
-    const manualModeBtn = document.getElementById('manualModeBtn');
+    // Email elements
+    const extractEmailsBtn = document.getElementById('extractEmails');
+    const copyAllEmailsBtn = document.getElementById('copyAllEmails');
+    const exportEmailsJsonBtn = document.getElementById('exportEmailsJson');
+    const exportEmailsExcelBtn = document.getElementById('exportEmailsExcel');
+    const emailSearchInput = document.getElementById('emailSearchInput');
+    const filterVisibleEmails = document.getElementById('filterVisibleEmails');
+    const filterHiddenEmails = document.getElementById('filterHiddenEmails');
+    const emailsContainer = document.getElementById('emailsContainer');
+    const emailCount = document.getElementById('emailCount');
+    
+    // Tab elements
+    const linksTab = document.getElementById('linksTab');
+    const emailsTab = document.getElementById('emailsTab');
+    const linksTabContent = document.getElementById('linksTabContent');
+    const emailsTabContent = document.getElementById('emailsTabContent');
     
     // Usage limit elements
     const usageCount = document.getElementById('usageCount');
@@ -25,18 +34,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let allLinks = [];
     let filteredLinks = [];
     let isExtracting = false;
-    let isAutoMode = true; // Default to auto mode
-    let isPremiumUser = false; // Premium status
+    let allEmails = [];
+    let filteredEmails = [];
+    let isExtractingEmails = false;
+    let currentTab = 'links'; // Track current active tab
+    let isAutoMode = false; // Track if auto mode is enabled
     
     // Usage limit configuration
-    const DAILY_LIMIT = 5;
+    const DAILY_LIMIT = 50;
     const STORAGE_KEY = 'linkExtractorUsage';
     const DEVICE_KEY = 'linkExtractorDevice';
     const INSTALL_KEY = 'linkExtractorInstall';
     const MODE_KEY = 'linkExtractorMode'; // Store user's preferred mode
-    
-    // Initialize ExtPay and check user subscription status
-    initializeExtPay();
     
     // Initialize usage tracking
     initializeUsageTracking();
@@ -44,664 +53,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize mode from storage
     initializeMode();
     
-    // Add event listeners for usage UI elements
-    const resetUsageBtn = document.getElementById('resetUsageBtn');
+    // Tab event listeners
+    linksTab.addEventListener('click', () => switchTab('links'));
+    emailsTab.addEventListener('click', () => switchTab('emails'));
     
-    if (resetUsageBtn) {
-        resetUsageBtn.addEventListener('click', resetUsageForTesting);
-    }
-    
-    // Add event listeners for mode toggle
-    if (autoModeBtn) {
-        autoModeBtn.addEventListener('click', () => setMode('auto'));
-    }
-    if (manualModeBtn) {
-        manualModeBtn.addEventListener('click', () => setMode('manual'));
-    }
-    
-    // Auto-extract will be handled in initializeMode() after mode is loaded
-    
-    // ExtPay initialization and premium user management
-    async function initializeExtPay() {
-        try {
-            // Check if user is premium
-            const user = await extpay.getUser();
-            isPremiumUser = user.paid;
-            
-            console.log('ExtPay user status:', { paid: user.paid, subscriptionStatus: user.subscriptionStatus });
-            
-            // Listen for subscription changes
-            extpay.onPaid.addListener((user) => {
-                console.log('User subscription activated:', user);
-                isPremiumUser = true;
-                updatePremiumStatus();
-                showNotification('🎉 Premium activated! You now have unlimited extractions!', 'success', 5000);
-            });
-            
-            // Update UI based on premium status
-            updatePremiumStatus();
-            
-        } catch (error) {
-            console.error('ExtPay initialization error:', error);
-            // Fallback to free tier if ExtPay fails
-            isPremiumUser = false;
-            updatePremiumStatus();
-        }
-    }
-    
-    function updatePremiumStatus() {
-        // Update usage display to reflect premium status
-        if (isPremiumUser) {
-            // Show premium status in usage header
-            usageCount.textContent = '∞ Unlimited';
-            usageCount.style.color = '#10b981';
-            usageCount.style.fontWeight = '600';
-            
-            // Hide progress bar for premium users
-            const progressBar = document.querySelector('.usage-progress-bar');
-            if (progressBar) {
-                progressBar.style.display = 'none';
-            }
-            
-            // Update footer to show premium status
-            usageFooter.innerHTML = `
-                <div class="premium-status">
-                    <span style="color: #10b981; font-weight: 600;">
-                        ✨ Premium Active - Unlimited Extractions
-                    </span>
-                    <button id="managePremiumBtn" style="
-                        margin-top: 8px;
-                        padding: 4px 12px;
-                        font-size: 11px;
-                        background: linear-gradient(135deg, #10b981, #059669);
-                        color: white;
-                        border: none;
-                        border-radius: 6px;
-                        cursor: pointer;
-                        font-weight: 500;
-                    ">Manage Subscription</button>
-                </div>
-            `;
-            
-            // Add event listener for manage subscription button
-            const managePremiumBtn = document.getElementById('managePremiumBtn');
-            if (managePremiumBtn) {
-                managePremiumBtn.addEventListener('click', openSubscriptionManagement);
-            }
-        } else {
-            // Show regular usage display for free users
-            const progressBar = document.querySelector('.usage-progress-bar');
-            if (progressBar) {
-                progressBar.style.display = 'block';
-            }
-            
-            // Reset usage count styling
-            usageCount.style.color = '';
-            usageCount.style.fontWeight = '';
-            
-            // Re-initialize usage display for free users
-            initializeUsageTracking();
-        }
-    }
-    
-    function openSubscriptionManagement() {
-        try {
-            // Open ExtPay subscription management
-            extpay.openPaymentPage();
-        } catch (error) {
-            console.error('Error opening subscription management:', error);
-            showNotification('Unable to open subscription management. Please try again.', 'error');
-        }
-    }
-    
-    async function initiateUpgrade() {
-        try {
-            // Open ExtPay payment page for subscription
-            await extpay.openPaymentPage();
-        } catch (error) {
-            console.error('Error initiating upgrade:', error);
-            showNotification('Unable to process upgrade. Please try again.', 'error');
-        }
-    }
-    
-    // Usage tracking functions
-    async function initializeUsageTracking() {
-        try {
-            // Generate a simple device fingerprint for secondary validation
-            const deviceId = await getOrCreateDeviceId();
-            
-            // Get current usage data
-            const result = await chrome.storage.sync.get([STORAGE_KEY, INSTALL_KEY]);
-            const today = new Date().toDateString();
-            let usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Check if this is a first-time install
-            if (!result[INSTALL_KEY]) {
-                await chrome.storage.sync.set({ 
-                    [INSTALL_KEY]: { 
-                        date: Date.now(), 
-                        deviceId: deviceId 
-                    } 
-                });
-            }
-            
-            // Reset count if it's a new day
-            if (usageData.date !== today) {
-                usageData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: deviceId,
-                    created: usageData.created || Date.now(),
-                    lastReset: Date.now()
-                };
-                await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
-            }
-            
-            // Validate device consistency (simple anti-abuse measure)
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                // Device mismatch detected - could be data from another device or tampering
-                console.log('Device mismatch detected, checking for data loss scenario...');
-                await handleDeviceMismatch(usageData, deviceId, today);
-                return;
-            }
-            
-            updateUsageDisplay(usageData.count);
-        } catch (error) {
-            console.error('Error initializing usage tracking:', error);
-            // Fallback to conservative approach
-            showStorageError();
-            updateUsageDisplay(0);
-        }
-    }
-    
-    async function getOrCreateDeviceId() {
-        try {
-            // Create a simple device fingerprint using available browser info
-            const fingerprint = btoa(
-                navigator.userAgent.slice(0, 20) + 
-                navigator.language + 
-                screen.width + 'x' + screen.height +
-                new Date().getTimezoneOffset()
-            ).slice(0, 16);
-            
-            const result = await chrome.storage.sync.get([DEVICE_KEY]);
-            if (result[DEVICE_KEY]) {
-                return result[DEVICE_KEY];
-            }
-            
-            // Store the device ID
-            await chrome.storage.sync.set({ [DEVICE_KEY]: fingerprint });
-            return fingerprint;
-        } catch (error) {
-            console.error('Error creating device ID:', error);
-            return 'fallback-device';
-        }
-    }
-    
-    async function handleDeviceMismatch(oldData, newDeviceId, today) {
-        try {
-            // This could be a legitimate case where:
-            // 1. User is on a different device (sync storage)
-            // 2. User cleared extension data
-            // 3. Browser profile was reset
-            
-            const installData = await chrome.storage.sync.get([INSTALL_KEY]);
-            const daysSinceInstall = installData[INSTALL_KEY] ? 
-                Math.floor((Date.now() - installData[INSTALL_KEY].date) / (1000 * 60 * 60 * 24)) : 0;
-            
-            // If it's been more than a day since install, be more lenient
-            if (daysSinceInstall > 0) {
-                // Reset with grace period
-                const resetData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: newDeviceId,
-                    created: Date.now(),
-                    gracePeriod: true,
-                    lastReset: Date.now()
-                };
-                await chrome.storage.sync.set({ [STORAGE_KEY]: resetData });
-                updateUsageDisplay(0);
-                showDataResetMessage();
-            } else {
-                // Recent install - might be trying to bypass limits
-                const conservativeData = { 
-                    date: today, 
-                    count: Math.min(oldData.count || 0, DAILY_LIMIT), 
-                    deviceId: newDeviceId,
-                    created: oldData.created || Date.now(),
-                    lastReset: Date.now()
-                };
-                await chrome.storage.sync.set({ [STORAGE_KEY]: conservativeData });
-                updateUsageDisplay(conservativeData.count);
-                showDeviceMismatchMessage();
-            }
-        } catch (error) {
-            console.error('Error handling device mismatch:', error);
-            updateUsageDisplay(DAILY_LIMIT); // Conservative approach
-        }
-    }
-    
-    function showStorageError() {
-        const usageFooter = document.getElementById('usageFooter');
-        usageFooter.innerHTML = `
-            <div class="usage-error">
-                <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
-                    ⚠️ Storage Error<br>
-                    <span style="font-size: 11px; color: #991b1b;">
-                        Unable to track usage. This may be due to browser restrictions.<br>
-                        Extension functionality may be limited.
-                    </span>
-                    <button id="retryBtn" style="
-                        margin-top: 8px;
-                        padding: 4px 8px;
-                        font-size: 10px;
-                        background: #dc2626;
-                        color: white;
-                        border: none;
-                        border-radius: 4px;
-                        cursor: pointer;
-                    ">Retry</button>
-                </div>
-            </div>
-        `;
-        
-        // Add event listener for retry button
-        const retryBtn = document.getElementById('retryBtn');
-        if (retryBtn) {
-            retryBtn.addEventListener('click', () => {
-                location.reload();
-            });
-        }
-    }
-    
-    function showDataResetMessage() {
-        showNotification(
-            'Usage data was reset due to storage changes. You have a fresh daily limit!', 
-            'info', 
-            4000
-        );
-    }
-    
-    function showDeviceMismatchMessage() {
-        showNotification(
-            'Device change detected. Usage count preserved for security.', 
-            'info', 
-            3000
-        );
-    }
-    
-    async function incrementUsageCount() {
-        try {
-            const deviceId = await getOrCreateDeviceId();
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            let usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Reset count if it's a new day
-            if (usageData.date !== today) {
-                usageData = { 
-                    date: today, 
-                    count: 0, 
-                    deviceId: deviceId,
-                    created: usageData.created || Date.now(),
-                    lastReset: Date.now()
-                };
-            }
-            
-            // Validate device consistency
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                console.log('Device mismatch during increment, handling...');
-                await handleDeviceMismatch(usageData, deviceId, today);
-                const newResult = await chrome.storage.sync.get([STORAGE_KEY]);
-                usageData = newResult[STORAGE_KEY];
-            }
-            
-            usageData.count++;
-            usageData.lastUsed = Date.now();
-            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
-            updateUsageDisplay(usageData.count);
-            
-            return usageData.count;
-        } catch (error) {
-            console.error('Error incrementing usage count:', error);
-            return DAILY_LIMIT; // Conservative fallback
-        }
-    }
-    
-    async function getCurrentUsageCount() {
-        try {
-            const deviceId = await getOrCreateDeviceId();
-            const result = await chrome.storage.sync.get([STORAGE_KEY]);
-            const today = new Date().toDateString();
-            const usageData = result[STORAGE_KEY] || { 
-                date: today, 
-                count: 0, 
-                deviceId: deviceId,
-                created: Date.now()
-            };
-            
-            // Return limit if it's a new day (will be reset on next operation)
-            if (usageData.date !== today) {
-                return 0;
-            }
-            
-            // Validate device consistency
-            if (usageData.deviceId && usageData.deviceId !== deviceId) {
-                console.log('Device mismatch during get, returning conservative count');
-                return Math.min(usageData.count || 0, DAILY_LIMIT);
-            }
-            
-            return usageData.count || 0;
-        } catch (error) {
-            console.error('Error getting usage count:', error);
-            return DAILY_LIMIT; // Conservative fallback
-        }
-    }
-    
-    function updateUsageDisplay(count) {
-        const remaining = Math.max(0, DAILY_LIMIT - count);
-        const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
-        
-        // Update count display
-        usageCount.textContent = `${count}/${DAILY_LIMIT}`;
-        
-        // Update progress bar
-        usageProgressFill.style.width = `${percentage}%`;
-        
-        // Update progress bar color based on usage
-        usageProgressFill.className = 'usage-progress-fill';
-        if (percentage >= 100) {
-            usageProgressFill.classList.add('danger');
-        } else if (percentage >= 80) {
-            usageProgressFill.classList.add('warning');
-        }
-        
-        // Update footer content
-        if (count >= DAILY_LIMIT) {
-            showLimitReached();
-        } else if (count >= DAILY_LIMIT - 1) {
-            usageFooter.innerHTML = `
-                <span class="usage-remaining">${remaining} extraction remaining today</span>
-                <div class="usage-upgrade-prompt">
-                    <div class="usage-upgrade-text">Almost at your daily limit!</div>
-                    <button class="usage-upgrade-btn" id="upgradeBtn">
-                        💎 Upgrade for Unlimited
-                    </button>
-                </div>
-            `;
-            
-            // Add event listener for dynamically created button using ExtPay
-            const upgradeBtn = document.getElementById('upgradeBtn');
-            if (upgradeBtn) upgradeBtn.addEventListener('click', initiateUpgrade);
-        } else {
-            usageFooter.innerHTML = `
-                <span class="usage-remaining">${remaining} extractions remaining today</span>
-            `;
-        }
-    }
-    
-    function showLimitReached() {
-        usageFooter.innerHTML = `
-            <div class="usage-limit-reached">
-                <div class="limit-title">Daily Limit Reached</div>
-                <div class="limit-message">
-                    You've used all 5 free extractions today. Upgrade to continue extracting links!
-                </div>
-                <button class="limit-upgrade-btn" id="limitUpgradeBtn">
-                    💎 Upgrade to Pro
-                </button>
-                <div class="limit-reset-info">
-                    Free limit resets at midnight
-                </div>
-                <button id="resetUsageBtn" style="
-                    margin-top: 8px;
-                    padding: 4px 8px;
-                    font-size: 10px;
-                    background: #e5e7eb;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    color: #6b7280;
-                ">Reset Usage (Testing)</button>
-            </div>
-        `;
-        
-        // Add event listeners for dynamically created buttons using ExtPay
-        const limitUpgradeBtn = document.getElementById('limitUpgradeBtn');
-        const resetBtn = document.getElementById('resetUsageBtn');
-        if (limitUpgradeBtn) limitUpgradeBtn.addEventListener('click', initiateUpgrade);
-        if (resetBtn) resetBtn.addEventListener('click', resetUsageForTesting);
-        
-        // Disable the extract button
-        extractBtn.disabled = true;
-        extractBtn.textContent = '🚫 Daily Limit Reached';
-        extractBtn.style.opacity = '0.6';
-        extractBtn.style.cursor = 'not-allowed';
-    }
-    
-    // Extract links function (can be called manually or automatically)
-    async function extractLinks() {
-        if (isExtracting) return;
-        
-        // Skip usage limit check for premium users
-        if (!isPremiumUser) {
-            // Check usage limit before proceeding for free users
-            const currentUsage = await getCurrentUsageCount();
-            if (currentUsage >= DAILY_LIMIT) {
-                showLimitReached();
-                showNotification('Daily extraction limit reached! Upgrade to continue.', 'error', 4000);
-                return;
-            }
-        }
-        
-        isExtracting = true;
-        showLoading(true);
-        
-        try {
-            // Get the active tab
-            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-            
-            // Check if we can access the tab
-            if (!tab || !tab.url) {
-                throw new Error('No active tab found');
-            }
-            
-            // Check if it's a restricted page
-            if (tab.url.startsWith('chrome://') || 
-                tab.url.startsWith('chrome-extension://') || 
-                tab.url.startsWith('edge://') || 
-                tab.url.startsWith('about:')) {
-                throw new Error('Cannot access browser internal pages');
-            }
-            
-            console.log('Attempting to extract links from:', tab.url);
-            
-            // Try to send message to existing content script
-            let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
-            
-            if (response && response.success) {
-                // Increment usage count only for free users on successful extraction
-                if (!isPremiumUser) {
-                    await incrementUsageCount();
-                }
-                
-                allLinks = response.data.links;
-                updateLinkCount(response.data);
-                enableControls();
-                filterAndDisplayLinks();
-                showSuccessMessage();
-            } else {
-                const errorMsg = response ? response.error : 'Unknown error occurred';
-                throw new Error('Failed to extract links: ' + errorMsg);
-            }
-        } catch (error) {
-            console.error('Error extracting links:', error);
-            let userMessage = 'Error extracting links. ';
-            
-            if (error.message.includes('Cannot access browser internal pages')) {
-                userMessage += 'This extension cannot work on browser internal pages.';
-            } else if (error.message.includes('Could not communicate with page')) {
-                userMessage += 'Please refresh the page and try again.';
-            } else {
-                userMessage += 'Please refresh the page if the issue persists.';
-            }
-            
-            showError(userMessage);
-        } finally {
-            showLoading(false);
-            isExtracting = false;
-        }
-    }
-    
-    // Send message with retry logic and content script injection
-    async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const response = await chrome.tabs.sendMessage(tabId, message);
-                return response;
-            } catch (error) {
-                console.log(`Message attempt ${attempt} failed:`, error);
-                
-                if (attempt === maxRetries) {
-                    // Last attempt - try injecting content script
-                    try {
-                        console.log('Attempting to inject content script...');
-                        await chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            files: ['content.js']
-                        });
-                        
-                        // Wait a bit longer for script to initialize
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        
-                        // Try one more time after injection
-                        const response = await chrome.tabs.sendMessage(tabId, message);
-                        return response;
-                    } catch (injectionError) {
-                        console.error('Content script injection failed:', injectionError);
-                        throw new Error('Could not communicate with page. Please refresh the page and try again.');
-                    }
-                } else {
-                    // Wait before retrying with exponential backoff
-                    await new Promise(resolve => setTimeout(resolve, 300 * attempt));
-                }
-            }
-        }
-    }
-    
-    // Mode management functions
-    async function initializeMode() {
-        try {
-            const result = await chrome.storage.sync.get([MODE_KEY]);
-            const savedMode = result[MODE_KEY] || 'auto';
-            await setMode(savedMode, false); // Don't save again when initializing
-            
-            // Only auto-extract if in auto mode and after mode is properly set
-            if (isAutoMode) {
-                setTimeout(() => {
-                    autoExtractLinks();
-                }, 100);
-            }
-        } catch (error) {
-            console.error('Error loading mode preference:', error);
-            await setMode('auto', false); // Default to auto
-            
-            // Auto-extract for fallback auto mode
-            setTimeout(() => {
-                autoExtractLinks();
-            }, 100);
-        }
-    }
-    
-    async function setMode(mode, save = true) {
-        isAutoMode = mode === 'auto';
-        
-        // Update button text immediately
-        if (extractBtn) {
-            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔍 Extract Links';
-        }
-        
-        // Update button states with animation
-        if (autoModeBtn && manualModeBtn) {
-            autoModeBtn.classList.add('switching');
-            manualModeBtn.classList.add('switching');
-            
-            setTimeout(() => {
-                if (isAutoMode) {
-                    autoModeBtn.classList.add('active');
-                    manualModeBtn.classList.remove('active');
-                } else {
-                    autoModeBtn.classList.remove('active');
-                    manualModeBtn.classList.add('active');
-                }
-                
-                autoModeBtn.classList.remove('switching');
-                manualModeBtn.classList.remove('switching');
-            }, 150);
-        }
-        
-        // Save preference
-        if (save) {
-            try {
-                await chrome.storage.sync.set({ [MODE_KEY]: mode });
-            } catch (error) {
-                console.error('Error saving mode preference:', error);
-            }
-        }
-        
-        // If switching to auto mode and no links are extracted yet, auto-extract
-        // Only do this when save=true (user initiated mode change, not initialization)
-        if (isAutoMode && allLinks.length === 0 && save) {
-            setTimeout(() => {
-                autoExtractLinks();
-            }, 300);
-        }
-    }
-    
-    // Auto-extract links when popup opens
-    async function autoExtractLinks() {
-        try {
-            // For premium users, skip usage limit check
-            if (!isPremiumUser) {
-                // Check usage limit before auto-extracting for free users
-                const currentUsage = await getCurrentUsageCount();
-                if (currentUsage >= DAILY_LIMIT) {
-                    showLimitReached();
-                    linksContainer.innerHTML = `
-                        <div class="placeholder">
-                            <div style="margin-bottom: 12px;">🚫 Daily extraction limit reached</div>
-                            <div style="font-size: 12px; color: #6b7280;">
-                                You've used all 5 free extractions today.<br>
-                                Upgrade to Pro for unlimited extractions!
-                            </div>
-                        </div>
-                    `;
-                    return;
-                }
-            }
-            
-            // Small delay to ensure popup is fully loaded
-            await new Promise(resolve => setTimeout(resolve, 100));
-            await extractLinks();
-        } catch (error) {
-            // Don't show error for auto-extract, just leave the manual button available
-            console.log('Auto-extract failed:', error);
-        }
-    }
-    
-    // Extract links button click (now acts as refresh)
+    // Extract links button click
     extractBtn.addEventListener('click', extractLinks);
+    
+    // Extract emails button click
+    extractEmailsBtn.addEventListener('click', extractEmails);
     
     // Copy all links button
     copyAllBtn.addEventListener('click', () => {
@@ -801,6 +161,377 @@ document.addEventListener('DOMContentLoaded', function() {
     searchInput.addEventListener('input', filterAndDisplayLinks);
     filterInternal.addEventListener('change', filterAndDisplayLinks);
     filterExternal.addEventListener('change', filterAndDisplayLinks);
+    
+    // Email search functionality
+    emailSearchInput.addEventListener('input', filterAndDisplayEmails);
+    filterVisibleEmails.addEventListener('change', filterAndDisplayEmails);
+    filterHiddenEmails.addEventListener('change', filterAndDisplayEmails);
+    
+    // Copy all emails button
+    copyAllEmailsBtn.addEventListener('click', () => {
+        const emailAddresses = filteredEmails.map(email => email.email).join('\n');
+        navigator.clipboard.writeText(emailAddresses).then(() => {
+            showNotification('Emails copied to clipboard!');
+        }).catch(err => {
+            showError('Failed to copy emails: ' + err.message);
+        });
+    });
+    
+    // Export Emails JSON button
+    exportEmailsJsonBtn.addEventListener('click', () => {
+        const dataToExport = {
+            emails: filteredEmails,
+            exportedAt: new Date().toISOString(),
+            totalCount: filteredEmails.length
+        };
+        
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `emails-${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        showNotification('Emails exported as JSON!');
+    });
+    
+    // Export Emails Excel button
+    exportEmailsExcelBtn.addEventListener('click', () => {
+        try {
+            // Show loading state
+            exportEmailsExcelBtn.disabled = true;
+            exportEmailsExcelBtn.innerHTML = '⏳ Creating Excel...';
+            
+            // Prepare data for Excel
+            const worksheetData = [
+                ['Email', 'Source', 'Visible on Page', 'Context']
+            ];
+            
+            filteredEmails.forEach(email => {
+                worksheetData.push([
+                    email.email,
+                    email.source,
+                    email.isVisible ? 'Yes' : 'No',
+                    email.context || ''
+                ]);
+            });
+            
+            // Create workbook and worksheet
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(worksheetData);
+            
+            // Set column widths
+            ws['!cols'] = [
+                { wch: 50 }, // Email
+                { wch: 12 }, // Source
+                { wch: 15 }, // Visible
+                { wch: 30 }  // Context
+            ];
+            
+            // Add worksheet to workbook
+            XLSX.utils.book_append_sheet(wb, ws, 'Emails');
+            
+            // Generate filename with timestamp
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const filename = `emails-${timestamp}.xlsx`;
+            
+            // Write file
+            XLSX.writeFile(wb, filename);
+            
+            // Success feedback
+            exportEmailsExcelBtn.innerHTML = '✅ Downloaded!';
+            showNotification('Emails exported to Excel!');
+            
+        } catch (error) {
+            console.error('Error exporting emails to Excel:', error);
+            showError('Failed to export emails to Excel: ' + error.message);
+            exportEmailsExcelBtn.innerHTML = '❌ Failed';
+        } finally {
+            // Reset button state after delay
+            setTimeout(() => {
+                exportEmailsExcelBtn.disabled = false;
+                exportEmailsExcelBtn.innerHTML = '📊 Export to Excel';
+            }, 2000);
+        }
+    });
+    
+    // Tab switching functionality
+    function switchTab(tab) {
+        currentTab = tab;
+        
+        // Update tab buttons
+        linksTab.classList.toggle('active', tab === 'links');
+        emailsTab.classList.toggle('active', tab === 'emails');
+        
+        // Update tab content
+        linksTabContent.classList.toggle('active', tab === 'links');
+        emailsTabContent.classList.toggle('active', tab === 'emails');
+        
+        // Update header based on active tab
+        const headerTitle = document.querySelector('.header h1');
+        const headerDesc = document.querySelector('.header p');
+        
+        if (tab === 'links') {
+            headerTitle.textContent = '🔗📧 Link & Email Extractor';
+            headerDesc.textContent = 'Extract all links and emails from the current page';
+        } else {
+            headerTitle.textContent = '📧📧 Email Extractor';
+            headerDesc.textContent = 'Extract all emails from the current page';
+        }
+        
+        // Update mode UI for new tab
+        updateModeUI();
+        
+        // Auto-extract if in auto mode
+        if (isAutoMode) {
+            setTimeout(() => {
+                if (tab === 'links') {
+                    extractLinks();
+                } else {
+                    extractEmails();
+                }
+            }, 300);
+        }
+    }
+    
+    // Mode management functions
+    async function initializeMode() {
+        try {
+            const result = await chrome.storage.sync.get([MODE_KEY]);
+            const savedMode = result[MODE_KEY];
+            
+            if (savedMode) {
+                isAutoMode = savedMode === 'auto';
+            }
+            
+            // Update UI to reflect current mode
+            updateModeUI();
+            
+            // Auto-extract based on current tab and mode
+            if (isAutoMode) {
+                setTimeout(() => {
+                    if (currentTab === 'links') {
+                        extractLinks();
+                    } else {
+                        extractEmails();
+                    }
+                }, 500); // Small delay to ensure page is ready
+            }
+        } catch (error) {
+            console.error('Error initializing mode:', error);
+            // Default to manual mode on error
+            isAutoMode = false;
+            updateModeUI();
+        }
+    }
+    
+    async function setMode(mode, save = true) {
+        isAutoMode = mode === 'auto';
+        
+        if (save) {
+            try {
+                await chrome.storage.sync.set({ [MODE_KEY]: mode });
+            } catch (error) {
+                console.error('Error saving mode:', error);
+            }
+        }
+        
+        updateModeUI();
+        
+        // Auto-extract if switching to auto mode
+        if (isAutoMode) {
+            setTimeout(() => {
+                if (currentTab === 'links') {
+                    extractLinks();
+                } else {
+                    extractEmails();
+                }
+            }, 300);
+        }
+    }
+    
+    function updateModeUI() {
+        // Update button text based on current tab and mode
+        if (currentTab === 'links') {
+            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔗 Extract Links';
+        } else {
+            extractEmailsBtn.textContent = isAutoMode ? '🔄 Refresh Emails' : '📧 Extract Emails';
+        }
+    }
+    
+    // Extract links function
+    async function extractLinks() {
+        if (isExtracting) return;
+        
+        // Check usage limit before proceeding
+        const currentUsage = await getCurrentUsageCount();
+        if (currentUsage >= DAILY_LIMIT) {
+            showLimitReached();
+            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
+            return;
+        }
+        
+        isExtracting = true;
+        showLoading(true);
+        
+        try {
+            // Get the active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            // Check if we can access the tab
+            if (!tab || !tab.url) {
+                throw new Error('No active tab found');
+            }
+            
+            // Check if it's a restricted page
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') || 
+                tab.url.startsWith('edge://') || 
+                tab.url.startsWith('about:')) {
+                throw new Error('Cannot access browser internal pages');
+            }
+            
+            console.log('Attempting to extract links from:', tab.url);
+            
+            // Try to send message to existing content script
+            let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
+            
+            if (response && response.success) {
+                // Increment usage count on successful extraction
+                await incrementUsageCount();
+                
+                allLinks = response.data.links;
+                updateLinkCount(response.data);
+                enableControls();
+                filterAndDisplayLinks();
+                showSuccessMessage();
+            } else {
+                const errorMsg = response ? response.error : 'Unknown error occurred';
+                throw new Error('Failed to extract links: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error extracting links:', error);
+            let userMessage = 'Error extracting links. ';
+            
+            if (error.message.includes('Cannot access browser internal pages')) {
+                userMessage += 'This extension cannot work on browser internal pages.';
+            } else if (error.message.includes('Could not communicate with page')) {
+                userMessage += 'Please refresh the page and try again.';
+            } else {
+                userMessage += 'Please refresh the page if the issue persists.';
+            }
+            
+            showError(userMessage);
+        } finally {
+            showLoading(false);
+            isExtracting = false;
+        }
+    }
+    
+    // Extract emails function
+    async function extractEmails() {
+        if (isExtractingEmails) return;
+        
+        // Check usage limit before proceeding
+        const currentUsage = await getCurrentUsageCount();
+        if (currentUsage >= DAILY_LIMIT) {
+            showLimitReached();
+            showNotification('Daily extraction limit reached! Please try again tomorrow.', 'error', 4000);
+            return;
+        }
+        
+        isExtractingEmails = true;
+        showLoading(true, 'emails');
+        
+        try {
+            // Get the active tab
+            const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+            
+            // Check if we can access the tab
+            if (!tab || !tab.url) {
+                throw new Error('No active tab found');
+            }
+            
+            // Check if it's a restricted page
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') || 
+                tab.url.startsWith('edge://') || 
+                tab.url.startsWith('about:')) {
+                throw new Error('Cannot access browser internal pages');
+            }
+            
+            console.log('Attempting to extract emails from:', tab.url);
+            
+            // Try to send message to existing content script
+            let response = await sendMessageWithRetry(tab.id, { action: 'extractEmails' });
+            
+            if (response && response.success) {
+                // Increment usage count on successful extraction
+                await incrementUsageCount();
+                
+                allEmails = response.data.emails;
+                updateEmailCount(response.data);
+                enableEmailControls();
+                filterAndDisplayEmails();
+                showSuccessMessage('Emails extracted successfully!');
+            } else {
+                const errorMsg = response ? response.error : 'Unknown error occurred';
+                throw new Error('Failed to extract emails: ' + errorMsg);
+            }
+        } catch (error) {
+            console.error('Error extracting emails:', error);
+            let userMessage = 'Error extracting emails. ';
+            
+            if (error.message.includes('Cannot access browser internal pages')) {
+                userMessage += 'This extension cannot work on browser internal pages.';
+            } else if (error.message.includes('Could not communicate with page')) {
+                userMessage += 'Please refresh the page and try again.';
+            } else {
+                userMessage += 'Please try again.';
+            }
+            
+            showError(userMessage);
+        } finally {
+            showLoading(false, 'emails');
+            isExtractingEmails = false;
+        }
+    }
+    
+    // Send message with retry logic and content script injection
+    async function sendMessageWithRetry(tabId, message, maxRetries = 3) {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await chrome.tabs.sendMessage(tabId, message);
+                return response;
+            } catch (error) {
+                console.log(`Message attempt ${attempt} failed:`, error);
+                
+                if (attempt === maxRetries) {
+                    throw error;
+                }
+                
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 500 * attempt));
+                
+                // Try to inject content script if it failed
+                if (attempt === 1) {
+                    try {
+                        await chrome.scripting.executeScript({
+                            target: { tabId: tabId },
+                            files: ['content.js']
+                        });
+                        console.log('Content script injected');
+                    } catch (injectError) {
+                        console.log('Failed to inject content script:', injectError);
+                    }
+                }
+            }
+        }
+    }
     
     function filterAndDisplayLinks() {
         const searchTerm = searchInput.value.toLowerCase();
@@ -961,150 +692,155 @@ document.addEventListener('DOMContentLoaded', function() {
         searchInput.disabled = false;
     }
     
-    function prepareCSVData(links) {
-        // CSV header
-        let csv = 'URL,Text,Type,Domain,Visible on Page\n';
+    function updateEmailCount(data) {
+        const count = data.totalCount;
+        const visible = data.visibleCount;
+        const hidden = data.hiddenCount;
         
-        // CSV rows
-        links.forEach(link => {
-            const url = `"${(link.url || '').replace(/"/g, '""')}"`;
-            const text = `"${(link.text || 'No text').replace(/"/g, '""')}"`;
-            const type = link.isExternal ? 'External' : 'Internal';
-            const domain = `"${(link.domain || '').replace(/"/g, '""')}"`;
-            const visible = link.isVisible ? 'Yes' : 'No';
+        let countText = `${count} email${count !== 1 ? 's' : ''} found`;
+        if (visible !== count) {
+            countText += ` (${visible} visible, ${hidden} hidden)`;
+        }
+        
+        emailCount.textContent = countText;
+    }
+    
+    function enableEmailControls() {
+        emailSearchInput.disabled = false;
+        filterVisibleEmails.disabled = false;
+        filterHiddenEmails.disabled = false;
+        copyAllEmailsBtn.disabled = false;
+        exportEmailsJsonBtn.disabled = false;
+        exportEmailsExcelBtn.disabled = false;
+    }
+    
+    function filterAndDisplayEmails() {
+        const searchTerm = emailSearchInput.value.toLowerCase();
+        const showVisible = filterVisibleEmails.checked;
+        const showHidden = filterHiddenEmails.checked;
+        
+        filteredEmails = allEmails.filter(email => {
+            // Search filter
+            const matchesSearch = !searchTerm || 
+                email.email.toLowerCase().includes(searchTerm) ||
+                (email.context && email.context.toLowerCase().includes(searchTerm));
             
-            csv += `${url},${text},${type},${domain},${visible}\n`;
+            // Visibility filter
+            const matchesVisibility = (showVisible && email.isVisible) || (showHidden && !email.isVisible);
+            
+            return matchesSearch && matchesVisibility;
         });
         
-        return csv;
+        displayEmails(filteredEmails);
     }
     
-    async function createGoogleSheetWithData(links) {
+    function displayEmails(emails) {
+        emailsContainer.innerHTML = '';
+        
+        if (emails.length === 0) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'placeholder';
+            placeholder.innerHTML = `
+                <div style="font-size: 24px; margin-bottom: 8px;">📧</div>
+                No emails found matching your criteria.<br>
+                <small>Try adjusting your search or filters.</small>
+            `;
+            emailsContainer.appendChild(placeholder);
+            return;
+        }
+        
+        emails.forEach(email => {
+            const emailItem = document.createElement('div');
+            emailItem.className = 'email-item';
+            
+            const sourceIcon = getEmailSourceIcon(email.source);
+            const visibilityIcon = email.isVisible ? '👁️' : '👻';
+            
+            emailItem.innerHTML = `
+                <div class="email-header">
+                    <div class="email-source">
+                        ${sourceIcon} ${email.source}
+                    </div>
+                    <div class="email-visibility">
+                        ${visibilityIcon} ${email.isVisible ? 'Visible' : 'Hidden'}
+                    </div>
+                </div>
+                <div class="email-address">
+                    <a href="mailto:${email.email}" class="email-link">${email.email}</a>
+                </div>
+                ${email.context ? `<div class="email-context">${escapeHtml(email.context)}</div>` : ''}
+                <div class="email-actions">
+                    <button class="btn-small copy-email" data-email="${email.email}">
+                        📋 Copy
+                    </button>
+                </div>
+            `;
+            
+            // Add event listener for copy button
+            const copyBtn = emailItem.querySelector('.copy-email');
+            copyBtn.addEventListener('click', () => copyEmailToClipboard(email.email));
+            
+            emailsContainer.appendChild(emailItem);
+        });
+    }
+    
+    function getEmailSourceIcon(source) {
+        switch (source) {
+            case 'mailto': return '📧';
+            case 'input': return '📝';
+            case 'text': return '📄';
+            default: return '📧';
+        }
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    async function copyEmailToClipboard(email) {
         try {
-            // Create the data array
-            const data = [
-                ["URL", "Text", "Type", "Domain", "Visible on Page"],
-                ...links.map(link => [
-                    link.url || '',
-                    link.text || 'No text',
-                    link.isExternal ? 'External' : 'Internal',
-                    link.domain || '',
-                    link.isVisible ? 'Yes' : 'No'
-                ])
-            ];
-            
-            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-            
-            // Method 1: Try using a working Google Apps Script web app
-            try {
-                const response = await fetch('https://script.google.com/macros/s/AKfycbxN9Z8Tj1mK5k1c5d8B7e9F2g3H4i5J6k7L8m9N0o1P2q3R4s5T6u7V8w9X0y1Z/exec', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        title: `Link Export ${timestamp}`,
-                        data: data
-                    })
-                });
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success && result.url) {
-                        await chrome.tabs.create({ 
-                            url: result.url,
-                            active: true
-                        });
-                        return true;
-                    }
-                }
-            } catch (error) {
-                console.log('Google Apps Script method failed:', error);
-            }
-            
-            // Method 2: Use CSV and Google Sheets import
-            const csvString = data.map(row => 
-                row.map(cell => {
-                    const str = String(cell);
-                    if (str.includes(',') || str.includes('"') || str.includes('\n') || str.includes('\r')) {
-                        return '"' + str.replace(/"/g, '""') + '"';
-                    }
-                    return str;
-                }).join(',')
-            ).join('\n');
-            
-            // Create data URL
-            const dataUrl = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csvString);
-            
-            // Try to create Google Sheets with import
-            const importUrl = `https://docs.google.com/spreadsheets/u/0/create?usp=sheets_web&title=Link%20Export%20${encodeURIComponent(timestamp)}`;
-            
-            // Open the import URL in a new tab
-            const newTab = await chrome.tabs.create({ 
-                url: importUrl,
-                active: true
-            });
-            
-            // Copy CSV data to clipboard for easy pasting
-            try {
-                await navigator.clipboard.writeText(csvString);
-                
-                // Wait for sheet to load, then show instructions
-                setTimeout(() => {
-                    showNotification(
-                        'Google Sheets opened! CSV data copied to clipboard. Click cell A1 and paste (Ctrl+V or Cmd+V) to import your data.', 
-                        'info', 
-                        8000
-                    );
-                }, 2000);
-                
-            } catch (clipboardError) {
-                // Fallback: Download CSV file
-                const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-                const url = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `links-${timestamp}.csv`;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-                
-                setTimeout(() => {
-                    showNotification(
-                        'Google Sheets opened and CSV downloaded! Use File → Import → Upload to import your CSV file.', 
-                        'info', 
-                        8000
-                    );
-                }, 2000);
-            }
-            
-            return true;
-            
+            await navigator.clipboard.writeText(email);
+            showNotification('Email copied to clipboard!', 'success', 2000);
         } catch (error) {
-            console.error('Failed to create Google Sheet:', error);
-            return false;
+            console.error('Failed to copy email:', error);
+            showNotification('Failed to copy email', 'error');
         }
     }
     
-    function showLoading(show) {
+    function showLoading(show, type = 'links') {
         if (show) {
-            linksContainer.innerHTML = '<div class="loading">Extracting links...</div>';
-            extractBtn.disabled = true;
-            extractBtn.textContent = 'Extracting...';
+            if (type === 'links') {
+                linksContainer.innerHTML = '<div class="loading">Extracting links...</div>';
+                extractBtn.disabled = true;
+                extractBtn.textContent = 'Extracting...';
+            } else {
+                emailsContainer.innerHTML = '<div class="loading">Extracting emails...</div>';
+                extractEmailsBtn.disabled = true;
+                extractEmailsBtn.textContent = 'Extracting...';
+            }
         } else {
-            extractBtn.disabled = false;
-            // Set button text based on current mode
-            extractBtn.textContent = isAutoMode ? '🔄 Refresh Links' : '🔍 Extract Links';
+            if (type === 'links') {
+                extractBtn.disabled = false;
+                extractBtn.textContent = '🔄 Refresh Links';
+            } else {
+                extractEmailsBtn.disabled = false;
+                extractEmailsBtn.textContent = '🔄 Refresh Emails';
+            }
         }
     }
     
-    function showSuccessMessage() {
-        // Only show success notification if links were found
+    function showSuccessMessage(message = '') {
+        // Only show success notification if links or emails were found
         if (allLinks.length > 0) {
             showNotification(`Found ${allLinks.length} links!`);
+        }
+        if (allEmails.length > 0) {
+            showNotification(`Found ${allEmails.length} emails!`);
+        }
+        if (message) {
+            showNotification(message);
         }
     }
     
@@ -1142,174 +878,283 @@ document.addEventListener('DOMContentLoaded', function() {
         setTimeout(() => {
             notification.classList.remove('show');
             setTimeout(() => {
-                document.body.removeChild(notification);
+                if (document.body.contains(notification)) {
+                    document.body.removeChild(notification);
+                }
             }, 300);
         }, 3000);
     }
     
-}); // End of DOMContentLoaded event listener
-
-// Global functions for upgrade functionality
-window.openUpgradePage = function() {
-    try {
-        // Use ExtPay for payment processing
-        if (typeof ExtPay !== 'undefined') {
-            const extpay = ExtPay('extractor'); // Your ExtPay ID
-            extpay.openPaymentPage();
-        } else {
-            // Fallback to external page if ExtPay not available
-            chrome.tabs.create({
-                url: 'https://linkextractor.pro/upgrade', // Replace with your actual upgrade URL
-                active: true
+    // Usage tracking functions
+    async function initializeUsageTracking() {
+        try {
+            // Generate a simple device fingerprint for secondary validation
+            const deviceId = await getOrCreateDeviceId();
+            
+            // Get current usage data
+            const result = await chrome.storage.sync.get([STORAGE_KEY, INSTALL_KEY]);
+            const today = new Date().toDateString();
+            let usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Check if this is a first-time install
+            if (!result[INSTALL_KEY]) {
+                await chrome.storage.sync.set({ 
+                    [INSTALL_KEY]: { 
+                        date: Date.now(), 
+                        deviceId: deviceId 
+                    } 
+                });
+            }
+            
+            // Reset count if it's a new day
+            if (usageData.date !== today) {
+                usageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: deviceId,
+                    created: usageData.created || Date.now(),
+                    lastReset: Date.now()
+                };
+                await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
+            }
+            
+            // Validate device consistency (simple anti-abuse measure)
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                // Device mismatch detected - could be data from another device or tampering
+                console.log('Device mismatch detected, checking for data loss scenario...');
+                await handleDeviceMismatch(usageData, deviceId, today);
+                return;
+            }
+            
+            updateUsageDisplay(usageData.count);
+        } catch (error) {
+            console.error('Error initializing usage tracking:', error);
+            // Fallback to conservative approach
+            showStorageError();
+            updateUsageDisplay(0);
+        }
+    }
+    
+    async function getOrCreateDeviceId() {
+        try {
+            // Create a simple device fingerprint using available browser info
+            const fingerprint = btoa(
+                navigator.userAgent.slice(0, 20) + 
+                navigator.language + 
+                screen.width + 'x' + screen.height +
+                new Date().getTimezoneOffset()
+            ).slice(0, 16);
+            
+            const result = await chrome.storage.sync.get([DEVICE_KEY]);
+            if (result[DEVICE_KEY]) {
+                return result[DEVICE_KEY];
+            }
+            
+            // Store the device ID
+            await chrome.storage.sync.set({ [DEVICE_KEY]: fingerprint });
+            return fingerprint;
+        } catch (error) {
+            console.error('Error creating device ID:', error);
+            return 'fallback-device';
+        }
+    }
+    
+    async function handleDeviceMismatch(oldData, newDeviceId, today) {
+        try {
+            // This could be a legitimate case where:
+            // 1. User is on a different device (sync storage)
+            // 2. User cleared extension data
+            // 3. Browser profile was reset
+            
+            const installData = await chrome.storage.sync.get([INSTALL_KEY]);
+            const daysSinceInstall = installData[INSTALL_KEY] ? 
+                Math.floor((Date.now() - installData[INSTALL_KEY].date) / (1000 * 60 * 60 * 24)) : 0;
+            
+            // If it's been more than a day since install, be more lenient
+            if (daysSinceInstall > 1) {
+                // Reset usage data for new device
+                const newUsageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: newDeviceId,
+                    created: Date.now(),
+                    lastReset: Date.now()
+                };
+                await chrome.storage.sync.set({ [STORAGE_KEY]: newUsageData });
+                updateUsageDisplay(0);
+                console.log('Usage data reset for new device');
+            } else {
+                // Keep old data but log the mismatch
+                console.log('Device mismatch detected but keeping existing data');
+                updateUsageDisplay(oldData.count);
+            }
+        } catch (error) {
+            console.error('Error handling device mismatch:', error);
+            updateUsageDisplay(0);
+        }
+    }
+    
+    function showStorageError() {
+        const usageFooter = document.getElementById('usageFooter');
+        usageFooter.innerHTML = `
+            <div class="usage-error">
+                <div style="color: #dc2626; font-size: 12px; text-align: center; padding: 8px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;">
+                    ⚠️ Storage Error<br>
+                    <span style="font-size: 11px; color: #991b1b;">
+                        Unable to track usage. This may be due to browser restrictions.<br>
+                        Extension functionality may be limited.
+                    </span>
+                    <button id="retryBtn" style="
+                        margin-top: 8px;
+                        padding: 4px 8px;
+                        font-size: 10px;
+                        background: #dc2626;
+                        color: white;
+                        border: none;
+                        border-radius: 4px;
+                        cursor: pointer;
+                    ">Retry</button>
+                </div>
+            </div>
+        `;
+        
+        // Add event listener for retry button
+        const retryBtn = document.getElementById('retryBtn');
+        if (retryBtn) {
+            retryBtn.addEventListener('click', () => {
+                location.reload();
             });
         }
-    } catch (error) {
-        console.error('Error opening upgrade page:', error);
-        // Fallback notification
-        showUpgradeModal();
-    }
-};
-
-// Show usage information to help users understand how limits work
-window.showUsageInfo = function() {
-    const infoModal = document.createElement('div');
-    infoModal.className = 'info-modal';
-    infoModal.innerHTML = `
-        <div class="info-content">
-            <h3>📊 Usage Limit Information</h3>
-            <div class="info-section">
-                <h4>How it works:</h4>
-                <ul>
-                    <li>• Free users get 5 link extractions per day</li>
-                    <li>• Usage resets every day at midnight</li>
-                    <li>• Data syncs across all your devices</li>
-                    <li>• Clearing browser cache won't reset your limit</li>
-                </ul>
-            </div>
-            <div class="info-section">
-                <h4>Data persistence:</h4>
-                <ul>
-                    <li>• Your usage is stored in Chrome's sync storage</li>
-                    <li>• It persists across browser restarts and cache clearing</li>
-                    <li>• Only extension uninstall/reinstall will reset data</li>
-                </ul>
-            </div>
-            <div class="info-section">
-                <h4>Need more extractions?</h4>
-                <p>Upgrade to Pro for unlimited daily extractions, advanced features, and priority support!</p>
-                <button id="modalUpgradeBtn" style="
-                    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-                    color: white;
-                    border: none;
-                    padding: 8px 16px;
-                    border-radius: 6px;
-                    font-weight: 600;
-                    cursor: pointer;
-                    margin-top: 8px;
-                ">💎 Upgrade Now</button>
-            </div>
-            <button id="closeModalBtn" style="
-                position: absolute;
-                top: 10px;
-                right: 10px;
-                background: none;
-                border: none;
-                font-size: 18px;
-                cursor: pointer;
-                opacity: 0.6;
-            ">✕</button>
-        </div>
-    `;
-    
-    document.body.appendChild(infoModal);
-    
-    // Add event listeners for modal buttons
-    const modalUpgradeBtn = infoModal.querySelector('#modalUpgradeBtn');
-    const closeModalBtn = infoModal.querySelector('#closeModalBtn');
-    
-    if (modalUpgradeBtn) {
-        modalUpgradeBtn.addEventListener('click', () => {
-            openUpgradePage();
-            closeInfoModal();
-        });
     }
     
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', closeInfoModal);
-    }
-    
-    setTimeout(() => {
-        infoModal.classList.add('show');
-    }, 10);
-};
-
-window.closeInfoModal = function() {
-    const modal = document.querySelector('.info-modal');
-    if (modal) {
-        modal.classList.remove('show');
-        setTimeout(() => {
-            if (document.body.contains(modal)) {
-                document.body.removeChild(modal);
+    async function incrementUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            let usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Reset count if it's a new day
+            if (usageData.date !== today) {
+                usageData = { 
+                    date: today, 
+                    count: 0, 
+                    deviceId: deviceId,
+                    created: usageData.created || Date.now(),
+                    lastReset: Date.now()
+                };
             }
-        }, 300);
-    }
-};
-
-// Testing function to reset usage count
-window.resetUsageForTesting = async function() {
-    try {
-        // Define the storage keys (since they're not in global scope)
-        const STORAGE_KEY = 'linkExtractorUsage';
-        const DEVICE_KEY = 'linkExtractorDevice';
-        const INSTALL_KEY = 'linkExtractorInstall';
-        
-        // Clear all usage-related storage
-        await chrome.storage.sync.remove([STORAGE_KEY, DEVICE_KEY, INSTALL_KEY]);
-        
-        // Show confirmation
-        const notification = document.createElement('div');
-        notification.className = 'notification success';
-        notification.textContent = 'Usage data cleared! Reloading...';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-        
-        // Reload after a short delay
-        setTimeout(() => {
-            location.reload();
-        }, 1000);
-    } catch (error) {
-        console.error('Error resetting usage:', error);
-        const notification = document.createElement('div');
-        notification.className = 'notification error';
-        notification.textContent = 'Error clearing usage data';
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.classList.add('show');
-        }, 10);
-    }
-};
-
-function showUpgradeModal() {
-    // Create a simple notification since we can't easily access the showNotification function from global scope
-    const notification = document.createElement('div');
-    notification.className = 'notification info';
-    notification.textContent = 'Upgrade to Pro for unlimited daily extractions, advanced filters, and priority support!';
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.classList.add('show');
-    }, 10);
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-        setTimeout(() => {
-            if (document.body.contains(notification)) {
-                document.body.removeChild(notification);
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during increment, handling...');
+                await handleDeviceMismatch(usageData, deviceId, today);
+                const newResult = await chrome.storage.sync.get([STORAGE_KEY]);
+                usageData = newResult[STORAGE_KEY];
             }
-        }, 300);
-    }, 5000);
-}
+            
+            usageData.count++;
+            usageData.lastUsed = Date.now();
+            await chrome.storage.sync.set({ [STORAGE_KEY]: usageData });
+            updateUsageDisplay(usageData.count);
+            
+            return usageData.count;
+        } catch (error) {
+            console.error('Error incrementing usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    async function getCurrentUsageCount() {
+        try {
+            const deviceId = await getOrCreateDeviceId();
+            const result = await chrome.storage.sync.get([STORAGE_KEY]);
+            const today = new Date().toDateString();
+            const usageData = result[STORAGE_KEY] || { 
+                date: today, 
+                count: 0, 
+                deviceId: deviceId,
+                created: Date.now()
+            };
+            
+            // Return limit if it's a new day (will be reset on next operation)
+            if (usageData.date !== today) {
+                return 0;
+            }
+            
+            // Validate device consistency
+            if (usageData.deviceId && usageData.deviceId !== deviceId) {
+                console.log('Device mismatch during get, returning conservative count');
+                return Math.min(usageData.count || 0, DAILY_LIMIT);
+            }
+            
+            return usageData.count || 0;
+        } catch (error) {
+            console.error('Error getting usage count:', error);
+            return DAILY_LIMIT; // Conservative fallback
+        }
+    }
+    
+    function updateUsageDisplay(count) {
+        const remaining = Math.max(0, DAILY_LIMIT - count);
+        const percentage = Math.min(100, (count / DAILY_LIMIT) * 100);
+        
+        // Update count display
+        usageCount.textContent = `${count}/${DAILY_LIMIT}`;
+        
+        // Update progress bar
+        usageProgressFill.style.width = `${percentage}%`;
+        
+        // Update progress bar color based on usage
+        usageProgressFill.className = 'usage-progress-fill';
+        if (percentage >= 100) {
+            usageProgressFill.classList.add('danger');
+        } else if (percentage >= 80) {
+            usageProgressFill.classList.add('warning');
+        }
+        
+        // Update footer content
+        if (count >= DAILY_LIMIT) {
+            showLimitReached();
+        } else {
+            usageFooter.innerHTML = `
+                <span class="usage-remaining">${remaining} extractions remaining today</span>
+            `;
+        }
+    }
+    
+    function showLimitReached() {
+        usageFooter.innerHTML = `
+            <div class="usage-limit-reached">
+                <div class="limit-title">Daily Limit Reached</div>
+                <div class="limit-message">
+                    You've used all ${DAILY_LIMIT} free extractions today. Please try again tomorrow!
+                </div>
+                <div class="limit-reset-info">
+                    Free limit resets at midnight
+                </div>
+            </div>
+        `;
+        
+        // Disable the extract buttons
+        extractBtn.disabled = true;
+        extractBtn.textContent = '🚫 Daily Limit Reached';
+        extractBtn.style.opacity = '0.6';
+        extractBtn.style.cursor = 'not-allowed';
+        
+        extractEmailsBtn.disabled = true;
+        extractEmailsBtn.textContent = '🚫 Daily Limit Reached';
+        extractEmailsBtn.style.opacity = '0.6';
+        extractEmailsBtn.style.cursor = 'not-allowed';
+    }
+});
