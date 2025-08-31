@@ -1,4 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize ExtPay for Stripe payments
+    // Replace 'extractor' with your actual ExtPay extension ID
+    const extpay = ExtPay('extractor'); // Your ExtPay ID
+    
     const extractBtn = document.getElementById('extractLinks');
     const copyAllBtn = document.getElementById('copyAll');
     const exportJsonBtn = document.getElementById('exportJson');
@@ -22,6 +26,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let filteredLinks = [];
     let isExtracting = false;
     let isAutoMode = true; // Default to auto mode
+    let isPremiumUser = false; // Premium status
     
     // Usage limit configuration
     const DAILY_LIMIT = 5;
@@ -29,6 +34,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const DEVICE_KEY = 'linkExtractorDevice';
     const INSTALL_KEY = 'linkExtractorInstall';
     const MODE_KEY = 'linkExtractorMode'; // Store user's preferred mode
+    
+    // Initialize ExtPay and check user subscription status
+    initializeExtPay();
     
     // Initialize usage tracking
     initializeUsageTracking();
@@ -52,6 +60,109 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Auto-extract will be handled in initializeMode() after mode is loaded
+    
+    // ExtPay initialization and premium user management
+    async function initializeExtPay() {
+        try {
+            // Check if user is premium
+            const user = await extpay.getUser();
+            isPremiumUser = user.paid;
+            
+            console.log('ExtPay user status:', { paid: user.paid, subscriptionStatus: user.subscriptionStatus });
+            
+            // Listen for subscription changes
+            extpay.onPaid.addListener((user) => {
+                console.log('User subscription activated:', user);
+                isPremiumUser = true;
+                updatePremiumStatus();
+                showNotification('🎉 Premium activated! You now have unlimited extractions!', 'success', 5000);
+            });
+            
+            // Update UI based on premium status
+            updatePremiumStatus();
+            
+        } catch (error) {
+            console.error('ExtPay initialization error:', error);
+            // Fallback to free tier if ExtPay fails
+            isPremiumUser = false;
+            updatePremiumStatus();
+        }
+    }
+    
+    function updatePremiumStatus() {
+        // Update usage display to reflect premium status
+        if (isPremiumUser) {
+            // Show premium status in usage header
+            usageCount.textContent = '∞ Unlimited';
+            usageCount.style.color = '#10b981';
+            usageCount.style.fontWeight = '600';
+            
+            // Hide progress bar for premium users
+            const progressBar = document.querySelector('.usage-progress-bar');
+            if (progressBar) {
+                progressBar.style.display = 'none';
+            }
+            
+            // Update footer to show premium status
+            usageFooter.innerHTML = `
+                <div class="premium-status">
+                    <span style="color: #10b981; font-weight: 600;">
+                        ✨ Premium Active - Unlimited Extractions
+                    </span>
+                    <button id="managePremiumBtn" style="
+                        margin-top: 8px;
+                        padding: 4px 12px;
+                        font-size: 11px;
+                        background: linear-gradient(135deg, #10b981, #059669);
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-weight: 500;
+                    ">Manage Subscription</button>
+                </div>
+            `;
+            
+            // Add event listener for manage subscription button
+            const managePremiumBtn = document.getElementById('managePremiumBtn');
+            if (managePremiumBtn) {
+                managePremiumBtn.addEventListener('click', openSubscriptionManagement);
+            }
+        } else {
+            // Show regular usage display for free users
+            const progressBar = document.querySelector('.usage-progress-bar');
+            if (progressBar) {
+                progressBar.style.display = 'block';
+            }
+            
+            // Reset usage count styling
+            usageCount.style.color = '';
+            usageCount.style.fontWeight = '';
+            
+            // Re-initialize usage display for free users
+            initializeUsageTracking();
+        }
+    }
+    
+    function openSubscriptionManagement() {
+        try {
+            // Open ExtPay subscription management
+            extpay.openPaymentPage();
+        } catch (error) {
+            console.error('Error opening subscription management:', error);
+            showNotification('Unable to open subscription management. Please try again.', 'error');
+        }
+    }
+    
+    async function initiateUpgrade() {
+        try {
+            // Open ExtPay payment page for subscription
+            await extpay.openPaymentPage();
+        } catch (error) {
+            console.error('Error initiating upgrade:', error);
+            showNotification('Unable to process upgrade. Please try again.', 'error');
+        }
+    }
     
     // Usage tracking functions
     async function initializeUsageTracking() {
@@ -330,9 +441,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             `;
             
-            // Add event listener for dynamically created button
+            // Add event listener for dynamically created button using ExtPay
             const upgradeBtn = document.getElementById('upgradeBtn');
-            if (upgradeBtn) upgradeBtn.addEventListener('click', openUpgradePage);
+            if (upgradeBtn) upgradeBtn.addEventListener('click', initiateUpgrade);
         } else {
             usageFooter.innerHTML = `
                 <span class="usage-remaining">${remaining} extractions remaining today</span>
@@ -366,10 +477,10 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
         
-        // Add event listeners for dynamically created buttons
+        // Add event listeners for dynamically created buttons using ExtPay
         const limitUpgradeBtn = document.getElementById('limitUpgradeBtn');
         const resetBtn = document.getElementById('resetUsageBtn');
-        if (limitUpgradeBtn) limitUpgradeBtn.addEventListener('click', openUpgradePage);
+        if (limitUpgradeBtn) limitUpgradeBtn.addEventListener('click', initiateUpgrade);
         if (resetBtn) resetBtn.addEventListener('click', resetUsageForTesting);
         
         // Disable the extract button
@@ -383,12 +494,15 @@ document.addEventListener('DOMContentLoaded', function() {
     async function extractLinks() {
         if (isExtracting) return;
         
-        // Check usage limit before proceeding
-        const currentUsage = await getCurrentUsageCount();
-        if (currentUsage >= DAILY_LIMIT) {
-            showLimitReached();
-            showNotification('Daily extraction limit reached! Upgrade to continue.', 'error', 4000);
-            return;
+        // Skip usage limit check for premium users
+        if (!isPremiumUser) {
+            // Check usage limit before proceeding for free users
+            const currentUsage = await getCurrentUsageCount();
+            if (currentUsage >= DAILY_LIMIT) {
+                showLimitReached();
+                showNotification('Daily extraction limit reached! Upgrade to continue.', 'error', 4000);
+                return;
+            }
         }
         
         isExtracting = true;
@@ -417,8 +531,10 @@ document.addEventListener('DOMContentLoaded', function() {
             let response = await sendMessageWithRetry(tab.id, { action: 'extractLinks' });
             
             if (response && response.success) {
-                // Increment usage count only on successful extraction
-                await incrementUsageCount();
+                // Increment usage count only for free users on successful extraction
+                if (!isPremiumUser) {
+                    await incrementUsageCount();
+                }
                 
                 allLinks = response.data.links;
                 updateLinkCount(response.data);
@@ -556,20 +672,23 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-extract links when popup opens
     async function autoExtractLinks() {
         try {
-            // Check usage limit before auto-extracting
-            const currentUsage = await getCurrentUsageCount();
-            if (currentUsage >= DAILY_LIMIT) {
-                showLimitReached();
-                linksContainer.innerHTML = `
-                    <div class="placeholder">
-                        <div style="margin-bottom: 12px;">🚫 Daily extraction limit reached</div>
-                        <div style="font-size: 12px; color: #6b7280;">
-                            You've used all 5 free extractions today.<br>
-                            Upgrade to Pro for unlimited extractions!
+            // For premium users, skip usage limit check
+            if (!isPremiumUser) {
+                // Check usage limit before auto-extracting for free users
+                const currentUsage = await getCurrentUsageCount();
+                if (currentUsage >= DAILY_LIMIT) {
+                    showLimitReached();
+                    linksContainer.innerHTML = `
+                        <div class="placeholder">
+                            <div style="margin-bottom: 12px;">🚫 Daily extraction limit reached</div>
+                            <div style="font-size: 12px; color: #6b7280;">
+                                You've used all 5 free extractions today.<br>
+                                Upgrade to Pro for unlimited extractions!
+                            </div>
                         </div>
-                    </div>
-                `;
-                return;
+                    `;
+                    return;
+                }
             }
             
             // Small delay to ensure popup is fully loaded
@@ -1032,15 +1151,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Global functions for upgrade functionality
 window.openUpgradePage = function() {
-    // This would typically open a payment/upgrade page
-    // For now, we'll show a modal or redirect to a pricing page
-    chrome.tabs.create({
-        url: 'https://linkextractor.pro/upgrade', // Replace with your actual upgrade URL
-        active: true
-    });
-    
-    // Alternative: Show a modal within the extension
-    showUpgradeModal();
+    try {
+        // Use ExtPay for payment processing
+        if (typeof ExtPay !== 'undefined') {
+            const extpay = ExtPay('extractor'); // Your ExtPay ID
+            extpay.openPaymentPage();
+        } else {
+            // Fallback to external page if ExtPay not available
+            chrome.tabs.create({
+                url: 'https://linkextractor.pro/upgrade', // Replace with your actual upgrade URL
+                active: true
+            });
+        }
+    } catch (error) {
+        console.error('Error opening upgrade page:', error);
+        // Fallback notification
+        showUpgradeModal();
+    }
 };
 
 // Show usage information to help users understand how limits work
