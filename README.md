@@ -4,11 +4,13 @@ A powerful Chrome extension that extracts and analyzes all links from any webpag
 
 ## Features
 
-- **🔍 Extract All Links**: Instantly scrape all links from the current webpage
+- **⚡ Auto-Extract Links**: Automatically extracts links when you open the extension popup
+- **🔍 Smart Extraction**: Intelligently handles dynamic content and injection timing
 - **📊 Link Analysis**: Categorize links as internal or external with detailed statistics
 - **🔎 Search & Filter**: Search through extracted links and filter by type
 - **📋 Copy Links**: Copy individual links or all links at once
 - **📄 Export Data**: Export link data as JSON for further analysis
+- **🔄 Refresh Option**: Manual refresh button for updated content
 - **📱 Responsive Design**: Clean, modern UI that works reliably
 
 ## Installation
@@ -34,12 +36,13 @@ A powerful Chrome extension that extracts and analyzes all links from any webpag
 
 1. **Navigate to Any Webpage**: Go to any website you want to extract links from
 2. **Open the Extension**: Click the Link Extractor icon in your Chrome toolbar
-3. **Extract Links**: Click the "Extract Links" button
+3. **Links Auto-Extract**: Links are automatically extracted when the popup opens
 4. **Use the Features**:
    - **Search**: Type in the search box to filter links
    - **Filter**: Toggle internal/external link visibility
    - **Copy**: Click "Copy All Links" to copy all links to clipboard
    - **Export**: Click "Export as JSON" to download link data
+   - **Refresh**: Click "Refresh Links" if page content has changed
 
 ## File Structure
 
@@ -61,9 +64,11 @@ linkExtractor/
 
 ## How It Works
 
-1. **Content Script**: The `content.js` file runs on every webpage and extracts link information
-2. **Popup Interface**: The popup provides a user-friendly interface to view and interact with extracted links
-3. **Message Passing**: The popup communicates with the content script to request link extraction
+1. **Auto-Injection**: The extension automatically injects the content script when needed
+2. **Smart Retry**: Uses retry logic with fallback content script injection for reliability  
+3. **Content Script**: The `content.js` file extracts link information from webpages
+4. **Popup Interface**: The popup provides a user-friendly interface to view and interact with extracted links
+5. **Message Passing**: The popup communicates with the content script using Chrome's messaging API
 
 ## Data Extracted
 
@@ -88,15 +93,21 @@ For each link, the extension extracts:
 ## Troubleshooting
 
 ### Extension Not Working
+- The extension now auto-extracts links, so no manual action needed
+- If it still doesn't work, try clicking "Refresh Links"
 - Make sure you've enabled the extension in `chrome://extensions/`
-- Try refreshing the webpage and reopening the extension
 
 ### No Links Found
 - Some websites may load links dynamically via JavaScript
-- Try waiting for the page to fully load before extracting links
+- Try clicking "Refresh Links" after the page has fully loaded
+- The extension now automatically handles most timing issues
+
+### Page Refresh Required (Fixed!)
+- **This issue has been resolved!** You no longer need to refresh pages
+- The extension automatically injects content scripts when needed
 
 ### Permission Issues
-- The extension requires the "activeTab" permission to access page content
+- The extension requires the "activeTab" and "scripting" permissions
 - Make sure you've granted necessary permissions during installation
 
 ## License

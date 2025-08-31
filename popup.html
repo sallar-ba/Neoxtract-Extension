@@ -166,19 +166,25 @@
         
         .loading {
             text-align: center;
-            padding: 20px;
+            padding: 30px;
             color: #667eea;
+            font-weight: 500;
         }
         
         .loading::after {
-            content: '...';
-            animation: dots 1.5s steps(3, end) infinite;
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 2px solid #667eea;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
         }
         
-        @keyframes dots {
-            0%, 20% { opacity: 0; }
-            40% { opacity: 1; }
-            100% { opacity: 0; }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
         .notification {
@@ -218,10 +224,10 @@
     </div>
     
     <div class="content">
-        <button id="extractLinks" class="btn btn-primary">Extract Links</button>
+        <button id="extractLinks" class="btn btn-primary">🔄 Refresh Links</button>
         
         <div class="stats">
-            <span id="linkCount">0 links found</span>
+            <span id="linkCount">Loading...</span>
         </div>
         
         <div class="search-container">
@@ -238,9 +244,7 @@
         </div>
         
         <div class="links-container" id="linksContainer">
-            <div class="placeholder">
-                Click "Extract Links" to start
-            </div>
+            <div class="loading">Extracting links...</div>
         </div>
         
         <button id="copyAll" class="btn btn-secondary" disabled>Copy All Links</button>
