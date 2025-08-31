@@ -188,7 +188,11 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const html = links.map(link => `
+        // Limit to first 10 links
+        const displayedLinks = links.slice(0, 10);
+        const hasMoreLinks = links.length > 10;
+        
+        const html = displayedLinks.map(link => `
             <div class="link-item" data-link-id="${link.id}">
                 <div class="link-header">
                     <span class="link-type ${link.isExternal ? 'external' : 'internal'}">
@@ -211,7 +215,22 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `).join('');
         
-        linksContainer.innerHTML = html;
+        // Add the links HTML to container
+        let finalHtml = html;
+        
+        // Add "showing limited results" message if there are more links
+        if (hasMoreLinks) {
+            finalHtml += `
+                <div class="more-links-notice">
+                    <div class="more-links-text">
+                        📄 Showing first 10 of ${links.length} links
+                        <div class="more-links-tip">Use search or filters to narrow results</div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        linksContainer.innerHTML = finalHtml;
         
         // Add event listeners for copy and highlight buttons
         document.querySelectorAll('.copy-link').forEach(btn => {
