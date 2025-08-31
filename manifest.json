@@ -1,8 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "CyberExtractor",
+  "name": "__MSG_appName__",
+  "short_name": "__MSG_appShortName__",
   "version": "2.0",
-  "description": "Extract links and emails from web pages with a cyberpunk interface",
+  "version_name": "2.0.0 (Neo UI)",
+  "default_locale": "en",
+  "description": "__MSG_appDesc__",
+  "homepage_url": "https://github.com/sallar-ba/Extractor-Ext",
+  "author": "sallar-ba",
   "permissions": [
     "activeTab",
     "scripting",
@@ -13,6 +18,7 @@
     "<all_urls>"
   ],
   "action": {
+    "default_title": "__MSG_actionTitle__",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
@@ -31,6 +37,7 @@
     {
       "matches": ["<all_urls>"],
       "js": ["content.js"],
+      "css": ["styles.css"],
       "run_at": "document_end"
     }
   ],

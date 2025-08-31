@@ -1,0 +1,18 @@
+{
+  "appName": {
+    "message": "CyberExtractor – Link & Email Extractor",
+    "description": "Extension name"
+  },
+  "appShortName": {
+    "message": "CyberXtract",
+    "description": "Short name for toolbar"
+  },
+  "appDesc": {
+    "message": "Extract links and emails from any webpage instantly. Filter internal/external links, search, copy to clipboard, export to JSON/Excel. Perfect for SEO audits, content research, QA testing. Fast, privacy-friendly, no tracking.",
+    "description": "Extension description"
+  },
+  "actionTitle": {
+    "message": "Open CyberExtractor",
+    "description": "Action tooltip"
+  }
+}
