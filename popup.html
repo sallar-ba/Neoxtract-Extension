@@ -4,218 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Link Extractor</title>
-    <style>
-        body {
-            width: 400px;
-            min-height: 500px;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f8f9fa;
-        }
-        
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            text-align: center;
-        }
-        
-        .header h1 {
-            margin: 0 0 5px 0;
-            font-size: 20px;
-            font-weight: 600;
-        }
-        
-        .header p {
-            margin: 0;
-            font-size: 14px;
-            opacity: 0.9;
-        }
-        
-        .content {
-            padding: 20px;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-        
-        .btn-primary {
-            background: #667eea;
-            color: white;
-        }
-        
-        .btn-primary:hover:not(:disabled) {
-            background: #5a67d8;
-            transform: translateY(-1px);
-        }
-        
-        .btn-secondary {
-            background: white;
-            color: #495057;
-            border: 2px solid #e9ecef;
-        }
-        
-        .btn-secondary:hover:not(:disabled) {
-            background: #f8f9fa;
-            border-color: #667eea;
-        }
-        
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            transform: none !important;
-        }
-        
-        .stats {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            margin: 15px 0;
-            text-align: center;
-            font-size: 14px;
-            color: #666;
-            border: 1px solid #e9ecef;
-        }
-        
-        .search-container {
-            margin: 15px 0;
-        }
-        
-        .search-container input {
-            width: 100%;
-            padding: 10px;
-            border: 2px solid #e9ecef;
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-        
-        .search-container input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .filters {
-            display: flex;
-            gap: 15px;
-            margin: 15px 0;
-            justify-content: center;
-        }
-        
-        .filters label {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 13px;
-            color: #495057;
-            cursor: pointer;
-        }
-        
-        .links-container {
-            background: white;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-            max-height: 200px;
-            overflow-y: auto;
-            margin: 15px 0;
-        }
-        
-        .placeholder {
-            padding: 30px;
-            text-align: center;
-            color: #999;
-            font-style: italic;
-        }
-        
-        .link-item {
-            padding: 12px;
-            border-bottom: 1px solid #f1f1f1;
-            font-size: 12px;
-        }
-        
-        .link-item:last-child {
-            border-bottom: none;
-        }
-        
-        .link-item:hover {
-            background: #f8f9fa;
-        }
-        
-        .link-url {
-            color: #667eea;
-            text-decoration: none;
-            word-break: break-all;
-            margin-bottom: 4px;
-            display: block;
-        }
-        
-        .link-text {
-            color: #666;
-            font-size: 11px;
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 30px;
-            color: #667eea;
-            font-weight: 500;
-        }
-        
-        .loading::after {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            margin-left: 10px;
-            border: 2px solid #667eea;
-            border-radius: 50%;
-            border-top-color: transparent;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        
-        .notification {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 500;
-            z-index: 1000;
-            transform: translateX(100%);
-            transition: transform 0.3s ease;
-        }
-        
-        .notification.show {
-            transform: translateX(0);
-        }
-        
-        .notification.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-        
-        .notification.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-    </style>
+    <link rel="stylesheet" href="popup.css">
 </head>
 <body>
     <div class="header">
@@ -231,15 +20,15 @@
         </div>
         
         <div class="search-container">
-            <input type="text" id="searchInput" placeholder="Search links..." disabled>
+            <input type="text" id="searchInput" placeholder="🔍 Search links..." disabled>
         </div>
         
         <div class="filters">
             <label>
-                <input type="checkbox" id="filterInternal" checked> Internal
+                <input type="checkbox" id="filterInternal" checked> 🏠 Internal
             </label>
             <label>
-                <input type="checkbox" id="filterExternal" checked> External
+                <input type="checkbox" id="filterExternal" checked> 🌐 External
             </label>
         </div>
         
@@ -247,8 +36,8 @@
             <div class="loading">Extracting links...</div>
         </div>
         
-        <button id="copyAll" class="btn btn-secondary" disabled>Copy All Links</button>
-        <button id="exportJson" class="btn btn-secondary" disabled>Export as JSON</button>
+        <button id="copyAll" class="btn btn-secondary" disabled>📋 Copy All Links</button>
+        <button id="exportJson" class="btn btn-secondary" disabled>💾 Export as JSON</button>
     </div>
     
     <script src="popup.js"></script>
