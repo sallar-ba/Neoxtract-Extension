@@ -1,5 +1,5 @@
 /**
- * Sound manager for the CyberExtractor
+ * Sound manager for Neoxtract
  * - Provides audio feedback for actions and easter eggs
  * - All sounds are generated programmatically using Web Audio API
  * - No external files needed

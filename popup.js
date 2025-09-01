@@ -282,34 +282,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Search functionality for links
     searchInput.addEventListener('input', () => {
-        const query = searchInput.value.toLowerCase();
-        if (query) {
-            filteredLinks = allLinks.filter(link => {
-                return link.url.toLowerCase().includes(query) || 
-                       (link.text && link.text.toLowerCase().includes(query)) ||
-                       link.domain.toLowerCase().includes(query);
-            });
-        } else {
-            filteredLinks = [...allLinks];
-        }
-        
         applyLinkFilters();
         renderLinks();
     });
 
     // Search functionality for emails
     emailSearchInput.addEventListener('input', () => {
-        const query = emailSearchInput.value.toLowerCase();
-        if (query) {
-            filteredEmails = allEmails.filter(email => {
-                return email.email.toLowerCase().includes(query) || 
-                       (email.context && email.context.toLowerCase().includes(query)) ||
-                       email.domain.toLowerCase().includes(query);
-            });
-        } else {
-            filteredEmails = [...allEmails];
-        }
-        
         applyEmailFilters();
         renderEmails();
     });
@@ -574,10 +552,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function applyLinkFilters() {
+        const query = (searchInput.value || '').toLowerCase().trim();
+        let base = allLinks;
+        if (query) {
+            base = allLinks.filter(link =>
+                (link.url && link.url.toLowerCase().includes(query)) ||
+                (link.text && link.text.toLowerCase().includes(query)) ||
+                (link.domain && link.domain.toLowerCase().includes(query))
+            );
+        }
+
         const showInternal = filterInternal.checked;
         const showExternal = filterExternal.checked;
         
-        filteredLinks = allLinks.filter(link => {
+        filteredLinks = base.filter(link => {
             if (!showInternal && !link.isExternal) return false;
             if (!showExternal && link.isExternal) return false;
             return true;
@@ -585,10 +573,20 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function applyEmailFilters() {
+        const query = (emailSearchInput.value || '').toLowerCase().trim();
+        let base = allEmails;
+        if (query) {
+            base = allEmails.filter(email =>
+                (email.email && email.email.toLowerCase().includes(query)) ||
+                (email.context && email.context.toLowerCase().includes(query)) ||
+                (email.domain && email.domain.toLowerCase().includes(query))
+            );
+        }
+
         const showVisible = filterVisibleEmails.checked;
         const showHidden = filterHiddenEmails.checked;
         
-        filteredEmails = allEmails.filter(email => {
+        filteredEmails = base.filter(email => {
             if (!showVisible && email.isVisible) return false;
             if (!showHidden && !email.isVisible) return false;
             return true;

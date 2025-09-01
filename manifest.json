@@ -7,7 +7,7 @@
   "default_locale": "en",
   "description": "__MSG_appDesc__",
   "homepage_url": "https://github.com/sallar-ba/Extractor-Ext",
-  "author": "sallar-ba",
+  "author": "sallar",
   "permissions": [
     "activeTab",
     "scripting",

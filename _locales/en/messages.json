@@ -1,10 +1,10 @@
 {
   "appName": {
-    "message": "CyberExtractor – Link & Email Extractor",
+    "message": "Neoxtract – Link & Email Extractor",
     "description": "Extension name"
   },
   "appShortName": {
-    "message": "CyberXtract",
+    "message": "Neoxtract",
     "description": "Short name for toolbar"
   },
   "appDesc": {
@@ -12,7 +12,7 @@
     "description": "Extension description"
   },
   "actionTitle": {
-    "message": "Open CyberExtractor",
+    "message": "Open Neoxtract",
     "description": "Action tooltip"
   }
 }

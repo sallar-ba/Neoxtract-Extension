@@ -1,15 +1,15 @@
-// CyberExtractor content script - enhanced with easter eggs and cyber effects
+// Neoxtract content script - enhanced with easter eggs and cyber effects
 (function() {
     'use strict';
     
     // Prevent multiple injections
     if (window.linkExtractorInjected) {
-        console.log('CyberExtractor already injected');
+        console.log('Neoxtract already injected');
         return;
     }
     window.linkExtractorInjected = true;
     
-    console.log('%c CyberExtractor initialized ', 'background: #000; color: #0f0; padding: 5px; border: 1px solid #0f0; font-family: monospace;');
+    console.log('%c Neoxtract initialized ', 'background: #000; color: #0f0; padding: 5px; border: 1px solid #0f0; font-family: monospace;');
     
     // Secret console message only visible to developers
     console.log('%c ⚡ Secret: Type "hackmode" in any input field and press Alt+X ⚡ ', 'color: rgba(0,0,0,0.01);');
@@ -198,7 +198,7 @@
         
         // Generate "hacking" text
         const hackingText = [
-            '> INITIALIZING CYBEREXTRACTOR HACK MODULE...',
+            '> INITIALIZING NEOXTRACT HACK MODULE...',
             '> ACCESSING TARGET DOMAIN: ' + window.location.hostname,
             '> BYPASSING SECURITY PROTOCOLS...',
             '> SCANNING FOR VULNERABILITIES...',
@@ -553,8 +553,8 @@
     // Add cyberpunk easter egg styles
     const cyberStyles = document.createElement('style');
     cyberStyles.textContent = `
-        /* CyberExtractor easter egg styles */
-        .cyberExtractor-highlight {
+        /* Neoxtract easter egg styles */
+        .neoxtract-highlight {
             outline: 3px solid #ff00ff !important;
             background-color: rgba(255, 0, 255, 0.1) !important;
             position: relative !important;

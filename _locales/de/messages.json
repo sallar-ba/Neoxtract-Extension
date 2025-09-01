@@ -1,6 +1,6 @@
 {
-  "appName": {"message": "CyberExtractor – Link- & E-Mail-Extractor", "description": "Erweiterungsname"},
-  "appShortName": {"message": "CyberXtract", "description": "Kurzname"},
+  "appName": {"message": "Neoxtract – Link- & E-Mail-Extractor", "description": "Erweiterungsname"},
+  "appShortName": {"message": "Neoxtract", "description": "Kurzname"},
   "appDesc": {"message": "Extrahiert Links und E-Mails von jeder Seite. Filtern, suchen, kopieren, als JSON/Excel exportieren. Schnell und datenschutzfreundlich.", "description": "Beschreibung"},
-  "actionTitle": {"message": "CyberExtractor öffnen", "description": "Aktionstitel"}
+  "actionTitle": {"message": "Neoxtract öffnen", "description": "Aktionstitel"}
 }

@@ -1,6 +1,6 @@
 /**
  * CYBER HACK MINI-GAME
- * An easter egg hacking simulation game for CyberExtractor
+ * An easter egg hacking simulation game for Neoxtract
  */
 
 class CyberHackGame {
@@ -167,7 +167,7 @@ class CyberHackGame {
       // If we're at the target position, insert the actual code
       if (i === targetPosition) {
         matrix += `<span class="code-target">${this.targetCode}</span>`;
-        i += this.targetCode.length - 1; // Skip ahead by code length
+        i += this.targetCode.length - 1; // Skip ahead to avoid overlap
         continue;
       }
       

@@ -1,7 +1,7 @@
-# Chrome Web Store Listing — CyberExtractor
+# Chrome Web Store Listing — Neoxtract
 
 Title (SEO-optimized alternatives)
-- CyberExtractor – Link & Email Extractor
+- Neoxtract – Link & Email Extractor
 - Link Extractor Pro - Export Links & Emails to Excel/JSON
 - Website Link Extractor - SEO Audit Tool for Chrome
 
@@ -13,7 +13,7 @@ Short description alternatives:
 - Professional link & email extractor. Filter, search, export data. Ideal for SEO specialists, marketers, researchers. No tracking.
 
 Long description
-🚀 **CyberExtractor** is the ultimate link extractor and email extractor Chrome extension for professionals. Extract all links and emails from any webpage instantly with powerful filtering, search, and export capabilities.
+🚀 **Neoxtract** is the ultimate link extractor and email extractor Chrome extension for professionals. Extract all links and emails from any webpage instantly with powerful filtering, search, and export capabilities.
 
 **Perfect for SEO specialists, marketers, researchers, QA teams, and content auditors** who need to quickly analyze website links, perform link audits, extract contact information, or export data for further analysis.
 
@@ -33,7 +33,7 @@ Long description
 • **Site mapping** - Generate link inventories for large websites
 • **Marketing research** - Analyze linking patterns and strategies
 
-**Why choose CyberExtractor over other link extractors?**
+**Why choose Neoxtract over other link extractors?**
 ✓ Fastest popup load time (optimized performance)
 ✓ Works on all websites without setup
 ✓ Export-ready data formats (JSON/Excel)

@@ -1,6 +1,6 @@
 {
-  "appName": {"message": "CyberExtractor – लिंक और ईमेल एक्सट्रैक्टर", "description": "एक्सटेंशन का नाम"},
-  "appShortName": {"message": "CyberXtract", "description": "संक्षिप्त नाम"},
+  "appName": {"message": "Neoxtract – लिंक और ईमेल एक्सट्रैक्टर", "description": "एक्सटेंशन का नाम"},
+  "appShortName": {"message": "Neoxtract", "description": "संक्षिप्त नाम"},
   "appDesc": {"message": "किसी भी पेज से लिंक और ईमेल निकालें। फ़िल्टर, खोज, कॉपी, और JSON/Excel में निर्यात करें। तेज़ और निजी।", "description": "विवरण"},
-  "actionTitle": {"message": "CyberExtractor खोलें", "description": "एक्शन शीर्षक"}
+  "actionTitle": {"message": "Neoxtract खोलें", "description": "एक्शन शीर्षक"}
 }

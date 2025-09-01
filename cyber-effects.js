@@ -1,6 +1,6 @@
 /**
  * CYBER EFFECTS MODULE
- * For the CyberExtractor extension - Adds interactive cyber effects
+ * For the Neoxtract extension - Adds interactive cyber effects
  * and Easter eggs to enhance user experience.
  */
 
@@ -141,21 +141,28 @@ class CyberEffects {
       easterEggStates: this.easterEggStates
     };
     
-    localStorage.setItem('cyberExtractorPrefs', JSON.stringify(preferences));
+    // Migrate old key once
+    try {
+      const legacy = localStorage.getItem('cyberExtractorPrefs');
+      if (legacy && !localStorage.getItem('neoxtractPrefs')) {
+        localStorage.setItem('neoxtractPrefs', legacy);
+        localStorage.removeItem('cyberExtractorPrefs');
+      }
+    } catch {}
+
+    localStorage.setItem('neoxtractPrefs', JSON.stringify(preferences));
   }
   
   // Load saved preferences
   loadPreferences() {
     try {
-      const saved = localStorage.getItem('cyberExtractorPrefs');
+      const saved = localStorage.getItem('neoxtractPrefs') || localStorage.getItem('cyberExtractorPrefs');
       if (saved) {
         const prefs = JSON.parse(saved);
         this.cyberTheme = prefs.cyberTheme || 'default';
-        this.soundEnabled = false; // Always false, regardless of saved preferences (sounds permanently disabled)
+        this.soundEnabled = false; // Always false
         this.matrixRainActive = prefs.matrixRainActive !== undefined ? prefs.matrixRainActive : true;
         this.easterEggStates = prefs.easterEggStates || this.easterEggStates;
-        
-        // Apply saved theme
         document.body.classList.add(this.cyberTheme);
       }
     } catch (e) {
@@ -273,7 +280,7 @@ class CyberEffects {
   
   // Display special message when all easter eggs are found
   showMasterEasterEgg() {
-    this.showEasterEggMessage('MASTER EGG HUNTER', 'Congratulations! You found all the easter eggs in CyberExtractor! You are a true digital explorer.');
+    this.showEasterEggMessage('MASTER EGG HUNTER', 'Congratulations! You found all the easter eggs in Neoxtract! You are a true digital explorer.');
     
     // Apply special effects
     document.body.classList.add('master-hunter');

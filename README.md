@@ -1,4 +1,4 @@
-# 💾 CYBEREXTRACTOR v2.0
+# 💾 NEOXTRACT v2.0
 
 A Chrome extension for extracting links and emails from web pages with a unique cyberpunk/retro-futuristic theme.
 

@@ -1,9 +1,9 @@
-# Privacy Policy - CyberExtractor
+# Privacy Policy - Neoxtract
 
 **Last updated: September 1, 2025**
 
 ## Data Collection
-CyberExtractor does **not** collect, store, or transmit any personal data. All link and email extraction happens locally in your browser.
+Neoxtract does **not** collect, store, or transmit any personal data. All link and email extraction happens locally in your browser.
 
 ## What We Don't Do
 - No analytics or tracking
@@ -22,7 +22,7 @@ CyberExtractor does **not** collect, store, or transmit any personal data. All l
 All extraction, filtering, searching, and exporting happens entirely within your browser. When you export to JSON or Excel, files are generated locally and downloaded directly to your device.
 
 ## Third-Party Services
-CyberExtractor does not use any third-party analytics, advertising, or tracking services.
+Neoxtract does not use any third-party analytics, advertising, or tracking services.
 
 ## Contact
 For privacy questions: https://github.com/sallar-ba/Extractor-Ext/issues
